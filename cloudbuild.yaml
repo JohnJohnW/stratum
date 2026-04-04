@@ -1,0 +1,27 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/bo-contradiction-detector', '-f', 'backend/Dockerfile', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/bo-contradiction-detector']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bo-contradiction-detector'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/bo-contradiction-detector'
+      - '--region'
+      - 'australia-southeast1'
+      - '--platform'
+      - 'managed'
+      - '--memory'
+      - '1Gi'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'CONTRADICTION_THRESHOLD=0.65'
+
+images:
+  - 'gcr.io/$PROJECT_ID/bo-contradiction-detector'
