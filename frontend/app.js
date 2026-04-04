@@ -31,43 +31,31 @@ const CY_STYLE = [
   }},
   { selector: 'node[type="Company"]', style: {
     shape: 'round-rectangle',
-    'background-gradient-direction': 'to-bottom',
-    'background-gradient-stop-colors': '#1e293b #0f172a',
-    'background-gradient-stop-positions': '0% 100%',
-    'border-color': '#334155', 'border-width': 1.5,
-    width: 168, height: 68,
+    'background-color': '#1e293b',
+    'border-color': '#334155', 'border-width': 2,
+    width: 172, height: 68,
     'font-size': '11px', 'font-weight': '700', 'text-max-width': '150px',
-    'shadow-blur': 18, 'shadow-color': 'rgba(15,23,42,0.4)',
-    'shadow-offset-x': 0, 'shadow-offset-y': 4, 'shadow-opacity': 0.9,
   }},
   { selector: 'node[type="Director"]', style: {
     shape: 'ellipse',
-    'background-gradient-direction': 'to-bottom',
-    'background-gradient-stop-colors': '#818cf8 #3730a3',
-    'background-gradient-stop-positions': '0% 100%',
-    'border-color': '#312e81', 'border-width': 1.5, width: 124, height: 58,
+    'background-color': '#4f46e5',
+    'border-color': '#3730a3', 'border-width': 2, width: 128, height: 58,
   }},
   { selector: 'node[type="Shareholder"]', style: {
     shape: 'ellipse',
-    'background-gradient-direction': 'to-bottom',
-    'background-gradient-stop-colors': '#34d399 #065f46',
-    'background-gradient-stop-positions': '0% 100%',
-    'border-color': '#047857', 'border-width': 1.5, width: 132, height: 58,
+    'background-color': '#059669',
+    'border-color': '#047857', 'border-width': 2, width: 136, height: 58,
   }},
   { selector: 'node[type="ShareClass"]', style: {
     shape: 'diamond',
-    'background-gradient-direction': 'to-bottom',
-    'background-gradient-stop-colors': '#fbbf24 #92400e',
-    'background-gradient-stop-positions': '0% 100%',
-    'border-color': '#78350f', 'border-width': 1.5, width: 150, height: 86,
+    'background-color': '#b45309',
+    'border-color': '#92400e', 'border-width': 2, width: 150, height: 86,
     'font-size': '9.5px', color: '#fef3c7',
   }},
   { selector: 'node[type="UltimateHoldingCompany"]', style: {
     shape: 'round-rectangle',
-    'background-gradient-direction': 'to-bottom',
-    'background-gradient-stop-colors': '#a78bfa #4c1d95',
-    'background-gradient-stop-positions': '0% 100%',
-    'border-color': '#5b21b6', 'border-width': 1.5, width: 168, height: 68, 'font-weight': '700',
+    'background-color': '#7c3aed',
+    'border-color': '#5b21b6', 'border-width': 2, width: 172, height: 68, 'font-weight': '700',
   }},
   { selector: 'edge', style: {
     width: 1.5, 'curve-style': 'bezier',
@@ -85,8 +73,6 @@ const CY_STYLE = [
     'line-color': '#f87171', 'target-arrow-color': '#f87171',
     'target-arrow-shape': 'tee', 'line-style': 'dashed', 'line-dash-pattern': [6, 3],
     width: 3.5, label: '', 'z-index': 999,
-    'shadow-blur': 14, 'shadow-color': '#ef4444',
-    'shadow-offset-x': 0, 'shadow-offset-y': 0, 'shadow-opacity': 0.6,
   }},
   { selector: '.highlighted', style: { opacity: 1, 'z-index': 999 }},
   { selector: '.dimmed',      style: { opacity: 0.07 }},
@@ -475,6 +461,7 @@ function App() {
   const [selected, setSelected]             = useState(null)
   const [loading, setLoading]               = useState(false)
   const [detailTab, setDetailTab]           = useState('evidence')
+  const [viewingDoc, setViewingDoc]         = useState(null)
 
   const wsRef        = useRef(null)
   const cyRef        = useRef(null)
@@ -680,7 +667,7 @@ function App() {
           <Button variant="outline" size="sm" onClick={() => loadFixture('B')} disabled={loading}
                   style={{ borderColor: '#fecdd3', background: '#fff8f8', color: '#c53030' }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
-            Fixture B, 3 Flags
+            Fixture B | 3 Flags
           </Button>
 
           {/* WS indicator */}
@@ -769,21 +756,34 @@ function App() {
               {/* Documents */}
               {matter?.documents && (
                 <>
-                  <SectionLabel>Documents</SectionLabel>
+                  <SectionLabel>Source Documents</SectionLabel>
                   <div style={{ padding: '0 10px 6px', flexShrink: 0 }}>
-                    {matter.documents.map((doc, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', borderRadius: 7 }}>
-                        <DocChip docType={doc.doc_type} />
-                        <span style={{ fontSize: 11.5, color: '#4b5563', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc.filename}>
-                          {doc.filename}
-                        </span>
-                        <Tooltip content={`${doc.chunks?.length} chunks`} side="left">
-                          <span style={{ fontSize: 10, color: '#d1d5db', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0, cursor: 'default' }}>
-                            {doc.chunks?.length}
+                    {matter.documents.map((doc, i) => {
+                      const isViewing = viewingDoc?.document_id === doc.document_id
+                      return (
+                        <div
+                          key={i}
+                          onClick={() => setViewingDoc(isViewing ? null : doc)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '6px 8px', borderRadius: 8, cursor: 'pointer',
+                            background: isViewing ? '#f0f0ff' : 'transparent',
+                            border: isViewing ? '1px solid #c7d2fe' : '1px solid transparent',
+                            transition: 'all 0.12s',
+                          }}
+                        >
+                          <DocChip docType={doc.doc_type} />
+                          <span style={{ fontSize: 11.5, color: isViewing ? '#3730a3' : '#4b5563', fontWeight: isViewing ? 600 : 400, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc.filename}>
+                            {doc.filename}
                           </span>
-                        </Tooltip>
-                      </div>
-                    ))}
+                          <Tooltip content="View source document" side="left">
+                            <span style={{ fontSize: 9, color: isViewing ? '#4f46e5' : '#cbd5e1', flexShrink: 0 }}>
+                              <Icon.Evidence />
+                            </span>
+                          </Tooltip>
+                        </div>
+                      )
+                    })}
                   </div>
                   <Separator />
                 </>
@@ -985,6 +985,106 @@ function App() {
                     {e.label}
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Document Viewer Panel ────────────────────────────────────── */}
+          {viewingDoc && !selected && (
+            <div
+              className="panel-slide absolute top-0 right-0 bottom-0"
+              style={{
+                width: 520, background: '#fff',
+                borderLeft: '1px solid #e8ecf0',
+                boxShadow: '-8px 0 48px rgba(15,23,42,0.1)',
+                zIndex: 50, display: 'flex', flexDirection: 'column',
+              }}
+            >
+              {/* Header */}
+              <div style={{
+                padding: '0 18px', height: 54, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                borderBottom: '1px solid #f1f5f9',
+                background: 'linear-gradient(to right, #f0f0ff, #ffffff)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <DocChip docType={viewingDoc.doc_type} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                    Source Document
+                  </span>
+                </div>
+                <Button variant="ghost" size="icon" className="btn-icon h-8 w-8 rounded-lg" onClick={() => setViewingDoc(null)}>
+                  <Icon.X />
+                </Button>
+              </div>
+
+              {/* Document metadata */}
+              <div style={{ padding: '12px 18px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>
+                  {viewingDoc.filename}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Badge variant="secondary">
+                    {viewingDoc.doc_type?.replace(/_/g, ' ')}
+                  </Badge>
+                  <Badge variant="outline">
+                    {viewingDoc.chunks?.length || 0} embedded chunks
+                  </Badge>
+                  {viewingDoc.sha256_hash && (
+                    <Tooltip content={viewingDoc.sha256_hash} side="bottom">
+                      <Badge variant="outline" style={{ fontFamily: 'JetBrains Mono, monospace', cursor: 'default' }}>
+                        SHA-256: {viewingDoc.sha256_hash?.slice(0, 12)}...
+                      </Badge>
+                    </Tooltip>
+                  )}
+                </div>
+              </div>
+
+              {/* Raw document text */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 18px' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 10 }}>
+                  Full Document Text
+                </div>
+                <div style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: 11, lineHeight: 1.7, color: '#374151',
+                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  background: '#f8fafc', border: '1px solid #e8ecf0',
+                  borderRadius: 10, padding: '14px 16px',
+                }}>
+                  {viewingDoc.raw_text || '(No text content available)'}
+                </div>
+
+                {/* Chunks breakdown */}
+                {viewingDoc.chunks && viewingDoc.chunks.length > 0 && (
+                  <div style={{ marginTop: 20 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 10 }}>
+                      Embedded Chunks ({viewingDoc.chunks.length})
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {viewingDoc.chunks.map((chunk, ci) => (
+                        <Card key={ci}>
+                          <div style={{ padding: '10px 12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                              <Badge variant="indigo" style={{ fontSize: 9 }}>
+                                {chunk.section_type?.replace(/_/g, ' ')}
+                              </Badge>
+                              <span style={{ fontSize: 9, color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace' }}>
+                                chunk {ci + 1}
+                              </span>
+                            </div>
+                            <div style={{
+                              fontSize: 10.5, lineHeight: 1.6, color: '#4b5563',
+                              maxHeight: 80, overflowY: 'auto',
+                            }}>
+                              {chunk.text_snippet}
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
