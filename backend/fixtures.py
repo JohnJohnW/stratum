@@ -431,14 +431,3 @@ def get_fixture_b() -> tuple[dict, list[tuple[str, DocumentType, str, list[tuple
             ],
         ),
     ]
-
-
-def _extract_section(text: str, start_marker: str, end_marker: str) -> str:
-    """Extract text between two markers."""
-    start = text.find(start_marker)
-    if start == -1:
-        return text
-    end = text.find(end_marker, start + len(start_marker))
-    if end == -1:
-        return text[start:]
-    return text[start:end].strip()

@@ -31,7 +31,7 @@ from backend.documents import (
     get_matter,
     get_vectors_for_matter,
 )
-from backend.embeddings import _l2_normalize
+from backend.embeddings import l2_normalize
 from backend.typologies import search_typologies
 
 logger = logging.getLogger(__name__)
@@ -67,10 +67,6 @@ class Contradiction(BaseModel):
 
 def _compute_cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b))
-
-
-def _text(chunk: DocumentChunk) -> str:
-    return (chunk.text_snippet or "").lower()
 
 
 def _generate_explanation(
@@ -110,7 +106,7 @@ def _make_contradiction(
     ti = target_chunk.embedding_index
     sim = _compute_cosine_similarity(vectors[si], vectors[ti])
 
-    contrast = _l2_normalize(vectors[si] - vectors[ti])
+    contrast = l2_normalize(vectors[si] - vectors[ti])
     typology_matches = search_typologies(contrast, k=1)
     typology = typology_matches[0] if typology_matches else {
         "id": "unknown", "label": "Unknown", "description": "", "severity": "medium", "similarity_score": 0

@@ -41,7 +41,7 @@ def get_client() -> genai.Client:
     return _client
 
 
-def _l2_normalize(v: np.ndarray) -> np.ndarray:
+def l2_normalize(v: np.ndarray) -> np.ndarray:
     norm = np.linalg.norm(v)
     if norm == 0:
         return v
@@ -86,7 +86,7 @@ async def embed_text(text: str) -> np.ndarray:
         types.Content(parts=[types.Part(text=text)]),
     )
     vec = np.array(result.embeddings[0].values, dtype=np.float32)
-    return _l2_normalize(vec)
+    return l2_normalize(vec)
 
 
 async def embed_texts(texts: list[str]) -> np.ndarray:
@@ -117,7 +117,7 @@ async def embed_image(image_bytes: bytes, mime_type: str = "image/png") -> np.nd
         ]),
     )
     vec = np.array(result.embeddings[0].values, dtype=np.float32)
-    return _l2_normalize(vec)
+    return l2_normalize(vec)
 
 
 async def embed_multimodal(
@@ -134,7 +134,7 @@ async def embed_multimodal(
         ]),
     )
     vec = np.array(result.embeddings[0].values, dtype=np.float32)
-    return _l2_normalize(vec)
+    return l2_normalize(vec)
 
 
 async def embed_document_pages(
@@ -180,7 +180,7 @@ async def embed_document_pages(
         raise ValueError("No embeddings produced from pages")
 
     if len(batch_embeddings) == 1:
-        return _l2_normalize(batch_embeddings[0])
+        return l2_normalize(batch_embeddings[0])
 
     avg = np.mean(batch_embeddings, axis=0)
-    return _l2_normalize(avg)
+    return l2_normalize(avg)

@@ -16,7 +16,7 @@ import faiss
 import numpy as np
 from pydantic import BaseModel, Field
 
-from backend.embeddings import EMBEDDING_DIM, embed_text, embed_multimodal, embed_document_pages
+from backend.embeddings import EMBEDDING_DIM, embed_text, embed_multimodal
 
 logger = logging.getLogger(__name__)
 

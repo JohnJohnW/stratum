@@ -9,6 +9,7 @@ graph and contradiction events.
 import asyncio
 import logging
 import os
+import pathlib
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -58,11 +59,14 @@ class ConnectionManager:
             conns.remove(ws)
 
     async def broadcast(self, matter_id: str, message: dict):
+        dead = []
         for ws in self._connections.get(matter_id, []):
             try:
                 await ws.send_json(message)
             except Exception:
-                pass
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(matter_id, ws)
 
 
 ws_manager = ConnectionManager()
@@ -104,7 +108,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -122,43 +126,6 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
-
-
-@app.get("/debug/similarities/{matter_id}")
-async def debug_similarities(matter_id: str):
-    """Debug endpoint: returns all pairwise cosine similarities across document chunks."""
-    from backend.documents import get_chunks_for_matter, get_vectors_for_matter
-    import numpy as np
-
-    matter = get_matter(matter_id)
-    if not matter:
-        raise HTTPException(404, "Matter not found")
-
-    chunks = get_chunks_for_matter(matter_id)
-    vectors = get_vectors_for_matter(matter_id)
-
-    if vectors is None:
-        return {"pairs": []}
-
-    pairs = []
-    for i, ci in enumerate(chunks):
-        for j, cj in enumerate(chunks):
-            if j <= i:
-                continue
-            if ci.document_source == cj.document_source:
-                continue
-            sim = float(np.dot(vectors[i], vectors[j]))
-            pairs.append({
-                "a": f"{ci.document_source.value}/{ci.section_type}",
-                "b": f"{cj.document_source.value}/{cj.section_type}",
-                "similarity": round(sim, 4),
-                "a_snippet": ci.text_snippet[:80],
-                "b_snippet": cj.text_snippet[:80],
-            })
-
-    pairs.sort(key=lambda x: x["similarity"])
-    threshold = float(os.environ.get("CONTRADICTION_THRESHOLD", "0.65"))
-    return {"threshold": threshold, "pairs": pairs}
 
 
 @app.post("/matters")
@@ -466,7 +433,6 @@ async def websocket_endpoint(websocket: WebSocket, matter_id: str):
 # ---------------------------------------------------------------------------
 
 # Mount after all API routes so API routes take priority
-import pathlib
 _frontend_dir = pathlib.Path(__file__).parent.parent / "frontend"
 if _frontend_dir.exists():
     app.mount("/frontend", StaticFiles(directory=str(_frontend_dir), html=True), name="frontend")

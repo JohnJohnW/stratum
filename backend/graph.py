@@ -39,8 +39,6 @@ def build_ownership_graph(matter_id: str) -> dict:
 
         if doc.doc_type == DocumentType.ASIC_EXTRACT:
             _parse_asic_extract(text, nodes, edges, node_names)
-        elif doc.doc_type == DocumentType.CONSTITUTION:
-            _parse_constitution(text, nodes, edges, node_names)
         elif doc.doc_type == DocumentType.SHAREHOLDER_REGISTER:
             _parse_shareholder_register(text, nodes, edges, node_names)
 
@@ -198,14 +196,6 @@ def _parse_asic_extract(text: str, nodes: dict, edges: list, node_names: set):
                 node_id = _slugify(name)
                 if node_id in nodes:
                     nodes[node_id]["sole_signatory"] = True
-
-
-def _parse_constitution(text: str, nodes: dict, edges: list, node_names: set):
-    """Extract governance structure from constitution text."""
-    # Constitution provides governance rules; nodes are mainly about share classes
-    # and governance restrictions. We don't add duplicate nodes here but can
-    # add edges for governance relationships if relevant.
-    pass
 
 
 def _parse_shareholder_register(text: str, nodes: dict, edges: list, node_names: set):

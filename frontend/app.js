@@ -549,7 +549,7 @@ function App() {
     setContradictions([])
     setSelected(null)
     setMatter(null)
-    setStatus({ phase: 'loading', message: `Analysing Fixture ${fixture}…`, progress: 0.05 })
+    setStatus({ phase: 'loading', message: `Analysing Fixture ${fixture}...`, progress: 0.05 })
     try {
       const data = await fetch(`/demo?fixture=${fixture}`).then(r => r.json())
       setMatterId(data.matter_id)
