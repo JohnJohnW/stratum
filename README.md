@@ -15,7 +15,7 @@ STRATUM accepts three corporate documents for a client matter (ASIC company extr
 ### Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/stratum.git
+git clone https://github.com/JohnJohnW/stratum.git
 cd stratum
 python3 -m venv .venv
 source .venv/bin/activate
