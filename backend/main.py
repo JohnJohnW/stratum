@@ -78,6 +78,12 @@ ws_manager = ConnectionManager()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from backend.database import init_db, db_list_matters, db_get_matter, db_get_chunks, db_get_contradictions, db_get_documents
+    from backend.documents import load_matter_from_db
+
+    # Initialize SQLite database
+    init_db()
+
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         logger.warning(
@@ -92,9 +98,22 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error("Failed to initialize typology index: %s", e)
 
+    # Restore matters from SQLite
+    existing = db_list_matters()
+    for m in existing:
+        mid = m["matter_id"]
+        matter_data = db_get_matter(mid)
+        chunks_data = db_get_chunks(mid)
+        contras = db_get_contradictions(mid)
+        docs_data = db_get_documents(mid)
+        if matter_data and chunks_data:
+            load_matter_from_db(matter_data, chunks_data, contras, docs_data)
+    if existing:
+        logger.info("Restored %d matter(s) from database.", len(existing))
+
     threshold = os.environ.get("CONTRADICTION_THRESHOLD", "0.65")
     logger.info("Contradiction threshold: %s", threshold)
-    logger.info("BO Contradiction Detector ready.")
+    logger.info("STRATUM ready.")
     yield
 
 
@@ -255,6 +274,9 @@ async def confirm_contradiction(matter_id: str, contradiction_id: str):
                 c.confirmed = True
             if contradiction_id not in matter.confirmed_flags:
                 matter.confirmed_flags.append(contradiction_id)
+            from backend.database import db_confirm_contradiction, update_matter_flags
+            db_confirm_contradiction(contradiction_id)
+            update_matter_flags(matter_id, matter.confirmed_flags)
             return {"status": "confirmed"}
 
     raise HTTPException(404, "Contradiction not found")
@@ -274,6 +296,105 @@ async def generate_cdd(matter_id: str):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.delete("/matters/{matter_id}")
+async def delete_matter_endpoint(matter_id: str):
+    from backend.documents import delete_matter
+    if not get_matter(matter_id):
+        raise HTTPException(404, "Matter not found")
+    delete_matter(matter_id)
+    return {"status": "deleted", "matter_id": matter_id}
+
+
+@app.post("/matters/{matter_id}/analyse")
+async def analyse_matter(matter_id: str):
+    """Run the full analysis pipeline: extraction, detection, and graph building."""
+    matter = get_matter(matter_id)
+    if not matter:
+        raise HTTPException(404, "Matter not found")
+
+    if not matter.documents:
+        raise HTTPException(400, "No documents uploaded. Upload at least 2 documents before running analysis.")
+
+    await ws_manager.broadcast(matter_id, {
+        "type": "status",
+        "phase": "extracting",
+        "message": "Extracting entities from documents...",
+        "progress": 0.2,
+    })
+
+    # Run Gemini extraction on each document
+    from backend.extraction import extract_entities
+    from backend.database import update_document_entities
+    entities_by_doc = {}
+    for doc in matter.documents:
+        try:
+            entities = await extract_entities(doc.raw_text, doc.doc_type)
+            entities_by_doc[doc.doc_type.value] = entities
+            update_document_entities(doc.document_id, entities.model_dump_json())
+            await ws_manager.broadcast(matter_id, {
+                "type": "extraction_complete",
+                "doc_type": doc.doc_type.value,
+                "entities": entities.model_dump(),
+            })
+        except Exception as e:
+            logger.warning("Extraction failed for %s: %s", doc.filename, e)
+
+    await ws_manager.broadcast(matter_id, {
+        "type": "status",
+        "phase": "detecting",
+        "message": "Running contradiction detection...",
+        "progress": 0.5,
+    })
+
+    # Run contradiction detection
+    contradictions = await run_contradiction_detection(matter_id)
+
+    # Persist contradictions
+    from backend.database import save_contradiction, clear_contradictions
+    clear_contradictions(matter_id)
+    for c in contradictions:
+        save_contradiction(c.model_dump())
+        await ws_manager.broadcast(matter_id, {
+            "type": "contradiction_found",
+            "contradiction": c.model_dump(),
+        })
+
+    await ws_manager.broadcast(matter_id, {
+        "type": "status",
+        "phase": "building_graph",
+        "message": "Building ownership graph...",
+        "progress": 0.75,
+    })
+
+    # Build graph from extracted entities if available, otherwise from regex
+    from backend.graph import build_graph_from_entities, build_ownership_graph
+    if entities_by_doc:
+        graph_data = build_graph_from_entities(matter_id, entities_by_doc)
+    else:
+        graph_data = build_ownership_graph(matter_id)
+
+    from backend.database import update_matter_graph
+    update_matter_graph(matter_id, graph_data)
+
+    await ws_manager.broadcast(matter_id, {
+        "type": "graph_full",
+        "data": graph_data,
+    })
+
+    await ws_manager.broadcast(matter_id, {
+        "type": "status",
+        "phase": "complete",
+        "message": f"Analysis complete. {len(contradictions)} contradiction(s) found.",
+        "progress": 1.0,
+    })
+
+    return {
+        "matter_id": matter_id,
+        "contradictions_found": len(contradictions),
+        "contradictions": [c.model_dump() for c in contradictions],
+    }
 
 
 @app.get("/demo")
@@ -336,7 +457,11 @@ async def load_demo(fixture: str = "A"):
 
     contradictions = await run_contradiction_detection(mid)
 
+    # Persist contradictions
+    from backend.database import save_contradiction as db_save_contra, clear_contradictions, update_matter_graph
+    clear_contradictions(mid)
     for c in contradictions:
+        db_save_contra(c.model_dump())
         await ws_manager.broadcast(mid, {
             "type": "contradiction_found",
             "contradiction": c.model_dump(),
@@ -351,6 +476,7 @@ async def load_demo(fixture: str = "A"):
     })
 
     graph_data = build_fixture_graph(mid, fixture)
+    update_matter_graph(mid, graph_data)
 
     # Broadcast graph nodes and edges
     for node in graph_data.get("nodes", []):

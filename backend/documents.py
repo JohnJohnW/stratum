@@ -78,12 +78,14 @@ _chunk_registry: dict[str, list[DocumentChunk]] = {}
 
 def create_matter(entity_name: str = "", acn: str = "") -> Matter:
     """Create a new matter with an empty FAISS document index."""
+    from backend.database import save_matter as db_save_matter
     matter = Matter(entity_name=entity_name, acn=acn)
     mid = matter.matter_id
     _matters[mid] = matter
     _doc_indexes[mid] = faiss.IndexFlatIP(EMBEDDING_DIM)
     _doc_vectors[mid] = []
     _chunk_registry[mid] = []
+    db_save_matter(mid, entity_name, acn)
     logger.info("Created matter %s: %s (ACN %s)", mid, entity_name, acn)
     return matter
 
@@ -184,6 +186,16 @@ async def ingest_document(
         doc.chunks.append(chunk)
 
     matter.documents.append(doc)
+
+    # Persist to SQLite
+    from backend.database import save_document, save_chunk
+    save_document(doc.document_id, matter_id, filename, doc_type.value,
+                  doc.raw_text, doc.page_count, sha256)
+    for chunk in doc.chunks:
+        save_chunk(chunk.chunk_id, doc.document_id, matter_id, doc_type.value,
+                   chunk.section_type, chunk.page_number, chunk.text_snippet,
+                   _doc_vectors[matter_id][chunk.embedding_index])
+
     logger.info(
         "Ingested %s (%s): %d pages, %d chunks",
         filename, doc_type.value, doc.page_count, len(doc.chunks),
@@ -250,11 +262,94 @@ async def ingest_text_document(
         doc.chunks.append(chunk)
 
     matter.documents.append(doc)
+
+    # Persist to SQLite
+    from backend.database import save_document, save_chunk
+    save_document(doc.document_id, matter_id, filename, doc_type.value,
+                  text_content, 1, sha256)
+    for chunk in doc.chunks:
+        save_chunk(chunk.chunk_id, doc.document_id, matter_id, doc_type.value,
+                   chunk.section_type, chunk.page_number, chunk.text_snippet,
+                   _doc_vectors[matter_id][chunk.embedding_index])
+
     logger.info(
         "Ingested text doc %s (%s): %d chunks",
         filename, doc_type.value, len(doc.chunks),
     )
     return doc
+
+
+def delete_matter(matter_id: str) -> bool:
+    """Delete a matter and all associated data from memory and database."""
+    from backend.database import db_delete_matter
+    _matters.pop(matter_id, None)
+    _doc_indexes.pop(matter_id, None)
+    _doc_vectors.pop(matter_id, None)
+    _chunk_registry.pop(matter_id, None)
+    return db_delete_matter(matter_id)
+
+
+def load_matter_from_db(matter_data: dict, chunks_data: list, contradictions_data: list,
+                        documents_data: Optional[list] = None) -> Matter:
+    """Restore a matter from SQLite data into the in-memory cache and rebuild its FAISS index."""
+    mid = matter_data["matter_id"]
+    matter = Matter(
+        matter_id=mid,
+        entity_name=matter_data.get("entity_name", ""),
+        acn=matter_data.get("acn", ""),
+        graph_data=matter_data.get("graph_data") or {},
+        confirmed_flags=matter_data.get("confirmed_flags") or [],
+        contradictions=contradictions_data,
+    )
+
+    # Restore Document objects
+    if documents_data:
+        for doc_row in documents_data:
+            doc_chunks = [
+                DocumentChunk(
+                    chunk_id=c["chunk_id"],
+                    document_id=doc_row["document_id"],
+                    document_source=DocumentType(c["doc_type"]),
+                    section_type=c["section_type"],
+                    page_number=c["page_number"],
+                    text_snippet=c["text_snippet"],
+                )
+                for c in chunks_data
+                if c["document_id"] == doc_row["document_id"]
+            ]
+            doc = Document(
+                document_id=doc_row["document_id"],
+                matter_id=mid,
+                filename=doc_row["filename"],
+                doc_type=DocumentType(doc_row["doc_type"]),
+                chunks=doc_chunks,
+                raw_text=doc_row.get("raw_text", ""),
+                page_count=doc_row.get("page_count", 0),
+                sha256_hash=doc_row.get("sha256_hash", ""),
+            )
+            matter.documents.append(doc)
+
+    _matters[mid] = matter
+    _doc_indexes[mid] = faiss.IndexFlatIP(EMBEDDING_DIM)
+    _doc_vectors[mid] = []
+    _chunk_registry[mid] = []
+
+    for chunk_row in chunks_data:
+        vec = chunk_row.get("embedding")
+        if vec is None:
+            continue
+        chunk = DocumentChunk(
+            chunk_id=chunk_row["chunk_id"],
+            document_id=chunk_row["document_id"],
+            document_source=DocumentType(chunk_row["doc_type"]),
+            section_type=chunk_row["section_type"],
+            page_number=chunk_row["page_number"],
+            text_snippet=chunk_row["text_snippet"],
+        )
+        _add_vector_to_matter(mid, vec, chunk)
+
+    logger.info("Restored matter %s from database: %d chunks", mid, len(chunks_data))
+    return matter
 
 
 def _classify_section(text: str, doc_type: DocumentType) -> str:

@@ -557,6 +557,24 @@ const Icon = {
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
     </svg>
   ),
+  Upload: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+  ),
+  Plus: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  ),
+  Trash: () => (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6"/>
+      <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+    </svg>
+  ),
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -575,6 +593,10 @@ function App() {
   const [viewingDoc, setViewingDoc]         = useState(null)
   const [nodePopover, setNodePopover]       = useState(null)
   const [hiddenTypes, setHiddenTypes]       = useState(new Set())
+  const [showUpload, setShowUpload]         = useState(false)
+  const [allMatters, setAllMatters]         = useState([])
+  const [uploadFiles, setUploadFiles]       = useState({})
+  const [uploadProgress, setUploadProgress] = useState({})
 
   const wsRef        = useRef(null)
   const cyRef        = useRef(null)
@@ -697,6 +719,129 @@ function App() {
 
   const fit = () => cyRef.current?.fit(undefined, 48)
 
+  const refreshMatters = useCallback(async () => {
+    try {
+      const res = await fetch('/matters')
+      if (res.ok) setAllMatters(await res.json())
+    } catch (_e) { /* offline */ }
+  }, [])
+
+  useEffect(() => { refreshMatters() }, [refreshMatters])
+
+  const handleFileSelect = useCallback((docType, file) => {
+    setUploadFiles(prev => ({ ...prev, [docType]: file }))
+  }, [])
+
+  const uploadAllAndAnalyse = useCallback(async () => {
+    const files = uploadFiles
+    const types = Object.keys(files)
+    if (types.length < 2) return
+
+    setShowUpload(false)
+    setLoading(true)
+    setGraphData({ nodes: [], edges: [] })
+    setContradictions([])
+    setSelected(null)
+    setMatter(null)
+    setNodePopover(null)
+    setViewingDoc(null)
+    setHiddenTypes(new Set())
+
+    try {
+      // Create matter
+      const matterRes = await fetch('/matters', { method: 'POST' })
+      const matterData = await matterRes.json()
+      const mid = matterData.matter_id
+      setMatterId(mid)
+
+      setStatus({ phase: 'uploading', message: 'Uploading documents...', progress: 0.1 })
+
+      // Upload each document
+      for (let i = 0; i < types.length; i++) {
+        const docType = types[i]
+        const file = files[docType]
+        const formData = new FormData()
+        formData.append('file', file)
+
+        setUploadProgress(prev => ({ ...prev, [docType]: 'uploading' }))
+        await fetch(`/upload/${docType}?matter_id=${mid}`, { method: 'POST', body: formData })
+        setUploadProgress(prev => ({ ...prev, [docType]: 'done' }))
+
+        setStatus({
+          phase: 'uploading',
+          message: `Uploaded ${file.name}`,
+          progress: 0.1 + (0.3 * ((i + 1) / types.length)),
+        })
+      }
+
+      // Run full analysis
+      setStatus({ phase: 'analysing', message: 'Running analysis...', progress: 0.5 })
+      const analysisRes = await fetch(`/matters/${mid}/analyse`, { method: 'POST' })
+      const analysis = await analysisRes.json()
+
+      // Fetch results
+      const [mRes, gRes] = await Promise.all([
+        fetch(`/matters/${mid}`),
+        fetch(`/matters/${mid}/graph`),
+      ])
+      setMatter(await mRes.json())
+      setGraphData(await gRes.json())
+      setContradictions(analysis.contradictions || [])
+
+      setStatus({
+        phase: 'complete',
+        message: `${analysis.contradictions_found} contradiction(s) found`,
+        progress: 1,
+      })
+
+      setUploadFiles({})
+      setUploadProgress({})
+      refreshMatters()
+    } catch (err) {
+      setStatus({ phase: 'error', message: err.message, progress: 0 })
+    } finally {
+      setLoading(false)
+    }
+  }, [uploadFiles, refreshMatters])
+
+  const loadMatter = useCallback(async (mid) => {
+    setLoading(true)
+    try {
+      const [mRes, gRes, cRes] = await Promise.all([
+        fetch(`/matters/${mid}`),
+        fetch(`/matters/${mid}/graph`),
+        fetch(`/matters/${mid}/contradictions`),
+      ])
+      if (!mRes.ok) throw new Error('Matter not found')
+      setMatterId(mid)
+      setMatter(await mRes.json())
+      const gData = await gRes.json()
+      setGraphData(gData || { nodes: [], edges: [] })
+      setContradictions(await cRes.json())
+      setSelected(null)
+      setNodePopover(null)
+      setViewingDoc(null)
+      setHiddenTypes(new Set())
+      setShowUpload(false)
+      setStatus({ phase: 'complete', message: 'Loaded from history', progress: 1 })
+    } catch (err) {
+      setStatus({ phase: 'error', message: err.message, progress: 0 })
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const deleteMatter = useCallback(async (mid) => {
+    await fetch(`/matters/${mid}`, { method: 'DELETE' })
+    if (matterId === mid) {
+      setMatterId(null)
+      setMatter(null)
+      setGraphData({ nodes: [], edges: [] })
+      setContradictions([])
+    }
+    refreshMatters()
+  }, [matterId, refreshMatters])
+
   // ── Load fixture ───────────────────────────────────────────────────────────
   const loadFixture = useCallback(async (fixture) => {
     setLoading(true)
@@ -725,12 +870,13 @@ function App() {
         message: cons.length ? `${cons.length} flag${cons.length > 1 ? 's' : ''} detected` : 'No contradictions found',
         progress: 1,
       })
+      refreshMatters()
     } catch (err) {
       setStatus({ phase: 'error', message: err.message, progress: 0 })
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [refreshMatters])
 
   const downloadCDD = useCallback(async () => {
     if (!matterId) return
@@ -816,8 +962,15 @@ function App() {
 
         <div className="flex-1" />
 
-        {/* Fixture buttons */}
+        {/* Actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          <Button variant="brand" size="sm" className="hover-lift" onClick={() => setShowUpload(true)}>
+            <Icon.Plus />
+            New Analysis
+          </Button>
+
+          <div style={{ width: 1, height: 22, background: '#e8ecf0', flexShrink: 0 }} />
+
           <Button variant="outline" size="sm" onClick={() => loadFixture('A')} disabled={loading}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
             Fixture A
@@ -905,11 +1058,67 @@ function App() {
                     </div>
                     <div>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: '#94a3b8' }}>No entity loaded</div>
-                      <div style={{ fontSize: 10.5, color: '#d1d5db', marginTop: 2 }}>Select a fixture to begin</div>
+                      <div style={{ fontSize: 10.5, color: '#d1d5db', marginTop: 2 }}>Upload documents or select a fixture</div>
                     </div>
                   </div>
                 )}
               </div>
+
+              {/* Matter history */}
+              {!matter && allMatters.length > 0 && (
+                <>
+                  <SectionLabel>Recent Analyses</SectionLabel>
+                  <div style={{ padding: '0 10px 8px', flexShrink: 0 }}>
+                    {allMatters.slice(0, 8).map(m => (
+                      <div
+                        key={m.matter_id}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '7px 8px', borderRadius: 8, cursor: 'pointer',
+                          transition: 'background 0.1s',
+                        }}
+                        onClick={() => loadMatter(m.matter_id)}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{
+                          width: 28, height: 28, borderRadius: 7,
+                          background: m.contradiction_count > 0 ? '#fff1f2' : '#f0fdf4',
+                          border: `1px solid ${m.contradiction_count > 0 ? '#fecdd3' : '#bbf7d0'}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0, fontSize: 10, fontWeight: 700,
+                          color: m.contradiction_count > 0 ? '#b91c1c' : '#065f46',
+                        }}>
+                          {m.contradiction_count || 0}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {m.entity_name || 'Unnamed Matter'}
+                          </div>
+                          <div style={{ fontSize: 9.5, color: '#94a3b8' }}>
+                            {m.document_count} docs
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteMatter(m.matter_id) }}
+                          style={{
+                            width: 24, height: 24, borderRadius: 6,
+                            border: 'none', background: 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: '#d1d5db', cursor: 'pointer',
+                            transition: 'color 0.1s',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = '#d1d5db'}
+                        >
+                          <Icon.Trash />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <Separator />
+                </>
+              )}
 
               {/* Documents */}
               {matter?.documents && (
@@ -1042,39 +1251,140 @@ function App() {
         <div className="graph-bg flex-1 relative overflow-hidden">
 
           {!hasGraph ? (
-            /* Empty state */
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div style={{ textAlign: 'center', maxWidth: 380, padding: '0 32px' }}>
-                <div className="hover-lift" style={{
-                  width: 72, height: 72, borderRadius: 20,
-                  background: '#fff', border: '1px solid #e8ecf0',
-                  boxShadow: '0 4px 24px rgba(15,23,42,0.06)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 20px',
-                }}>
-                  <Icon.FileSearch size={34} />
-                </div>
-                <div style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', letterSpacing: '-0.025em', marginBottom: 8 }}>
-                  Beneficial Ownership Graph
-                </div>
-                <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.65, marginBottom: 28 }}>
-                  Load a fixture to detect cross-document contradictions and visualise the corporate ownership structure.
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
-                  <Button variant="outline" size="sm" className="hover-lift" onClick={() => loadFixture('A')}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981' }} />
-                    Fixture A
-                    <span style={{ fontSize: 10.5, color: '#94a3b8', fontWeight: 400 }}>Clean</span>
-                  </Button>
-                  <Button variant="outline" size="sm" className="hover-lift" onClick={() => loadFixture('B')}
-                          style={{ borderColor: '#fecdd3', background: '#fff8f8', color: '#c53030' }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444' }} />
-                    Fixture B
-                    <span style={{ fontSize: 10.5, color: '#fca5a5', fontWeight: 400 }}>3 flags</span>
-                  </Button>
+            showUpload ? (
+              /* Upload panel */
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div style={{ width: 540, padding: '0 24px' }}>
+                  <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: 6 }}>
+                      Upload Corporate Documents
+                    </div>
+                    <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5 }}>
+                      Upload an ASIC extract, constitution, and shareholder register to detect ownership contradictions.
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {[
+                      { type: 'asic_extract', label: 'ASIC Company Extract', required: true },
+                      { type: 'constitution', label: 'Company Constitution', required: true },
+                      { type: 'shareholder_register', label: 'Shareholder Register', required: false },
+                    ].map(slot => {
+                      const file = uploadFiles[slot.type]
+                      const progress = uploadProgress[slot.type]
+                      return (
+                        <div
+                          key={slot.type}
+                          onClick={() => {
+                            const input = document.createElement('input')
+                            input.type = 'file'
+                            input.accept = '.pdf'
+                            input.onchange = (e) => {
+                              const f = e.target.files[0]
+                              if (f) handleFileSelect(slot.type, f)
+                            }
+                            input.click()
+                          }}
+                          onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#818cf8' }}
+                          onDragLeave={(e) => { e.currentTarget.style.borderColor = file ? '#a7f3d0' : '#e2e8f0' }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            e.currentTarget.style.borderColor = '#a7f3d0'
+                            const f = e.dataTransfer.files[0]
+                            if (f) handleFileSelect(slot.type, f)
+                          }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 14,
+                            padding: '14px 16px',
+                            borderRadius: 12,
+                            border: `2px dashed ${file ? '#a7f3d0' : '#e2e8f0'}`,
+                            background: file ? '#f0fdf4' : '#fff',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 10,
+                            background: file ? '#dcfce7' : '#f1f5f9',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0,
+                            color: file ? '#059669' : '#94a3b8',
+                          }}>
+                            {file ? <Icon.Check /> : <Icon.Upload />}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
+                              {slot.label}
+                              {slot.required && <span style={{ color: '#ef4444', marginLeft: 3 }}>*</span>}
+                            </div>
+                            <div style={{ fontSize: 11, color: file ? '#059669' : '#94a3b8', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {file ? file.name : 'Drop PDF here or click to browse'}
+                            </div>
+                          </div>
+                          {progress === 'done' && (
+                            <Badge variant="success">Uploaded</Badge>
+                          )}
+                          <DocChip docType={slot.type} />
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'center' }}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setShowUpload(false); setUploadFiles({}); setUploadProgress({}) }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="brand"
+                      className="hover-lift"
+                      onClick={uploadAllAndAnalyse}
+                      disabled={Object.keys(uploadFiles).length < 2}
+                    >
+                      <Icon.Analysis />
+                      Run Analysis
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              /* Empty state */
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div style={{ textAlign: 'center', maxWidth: 380, padding: '0 32px' }}>
+                  <div className="hover-lift" style={{
+                    width: 72, height: 72, borderRadius: 20,
+                    background: '#fff', border: '1px solid #e8ecf0',
+                    boxShadow: '0 4px 24px rgba(15,23,42,0.06)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 20px',
+                  }}>
+                    <Icon.FileSearch size={34} />
+                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', letterSpacing: '-0.025em', marginBottom: 8 }}>
+                    Beneficial Ownership Graph
+                  </div>
+                  <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.65, marginBottom: 28 }}>
+                    Load a fixture to detect cross-document contradictions and visualise the corporate ownership structure.
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+                    <Button variant="outline" size="sm" className="hover-lift" onClick={() => loadFixture('A')}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981' }} />
+                      Fixture A
+                      <span style={{ fontSize: 10.5, color: '#94a3b8', fontWeight: 400 }}>Clean</span>
+                    </Button>
+                    <Button variant="outline" size="sm" className="hover-lift" onClick={() => loadFixture('B')}
+                            style={{ borderColor: '#fecdd3', background: '#fff8f8', color: '#c53030' }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444' }} />
+                      Fixture B
+                      <span style={{ fontSize: 10.5, color: '#fca5a5', fontWeight: 400 }}>3 flags</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )
           ) : (
             <div ref={cyElRef} id="cy" className="absolute inset-0" />
           )}

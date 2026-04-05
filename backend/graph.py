@@ -240,6 +240,197 @@ def _add_contradiction_edge(contra: dict, nodes: dict, edges: list):
     })
 
 
+def build_graph_from_entities(matter_id: str, entities_by_doc: dict) -> dict:
+    """
+    Build a Cytoscape.js graph from Gemini-extracted OwnershipEntities.
+
+    entities_by_doc maps doc_type string to OwnershipEntities objects.
+    This is more reliable than regex parsing raw text.
+    """
+    matter = get_matter(matter_id)
+    if not matter:
+        raise ValueError(f"Matter {matter_id} not found")
+
+    nodes = []
+    edges = []
+    node_ids = set()
+
+    # Extract company info (prefer ASIC extract)
+    company = None
+    for doc_type in ["asic_extract", "constitution", "shareholder_register"]:
+        ent = entities_by_doc.get(doc_type)
+        if ent and ent.company and ent.company.name:
+            company = ent.company
+            break
+
+    if company and company.name:
+        company_id = _slugify(company.name)
+        nodes.append({"data": {
+            "id": company_id,
+            "label": f"{company.name}\nACN {company.acn}" if company.acn else company.name,
+            "type": "Company",
+            "name": company.name,
+            "acn": company.acn,
+        }})
+        node_ids.add(company_id)
+    else:
+        company_id = "company"
+        company_name = matter.entity_name or "Unknown Company"
+        nodes.append({"data": {
+            "id": company_id,
+            "label": company_name,
+            "type": "Company",
+            "name": company_name,
+            "acn": matter.acn,
+        }})
+        node_ids.add(company_id)
+
+    # Directors (from ASIC extract)
+    asic_ent = entities_by_doc.get("asic_extract")
+    if asic_ent:
+        for i, d in enumerate(asic_ent.directors):
+            did = _slugify(d.name)
+            if did not in node_ids:
+                label = f"{d.name}\nAppt: {d.appointment_date}" if d.appointment_date else d.name
+                nodes.append({"data": {
+                    "id": did,
+                    "label": label,
+                    "type": "Director",
+                    "name": d.name,
+                    "appointment_date": d.appointment_date,
+                    "sole_signatory": d.sole_signatory,
+                }})
+                node_ids.add(did)
+
+            edge_label = d.role
+            if d.sole_signatory:
+                edge_label += " (Sole Signatory)"
+            edges.append({"data": {
+                "id": f"e-dir-{i}",
+                "source": did,
+                "target": company_id,
+                "type": "CONTROLS",
+                "label": edge_label,
+            }})
+
+    # Share classes (prefer constitution definitions, fall back to ASIC)
+    const_ent = entities_by_doc.get("constitution")
+    share_classes = []
+    if const_ent and const_ent.share_classes:
+        share_classes = const_ent.share_classes
+    elif asic_ent and asic_ent.share_classes:
+        share_classes = asic_ent.share_classes
+
+    # Track which classes are constitutionally authorised
+    const_class_names = set()
+    if const_ent:
+        const_class_names = {sc.name for sc in const_ent.share_classes}
+
+    # Also add any ASIC-only share classes (potential undisclosed)
+    asic_class_names = set()
+    if asic_ent:
+        for sc in asic_ent.share_classes:
+            asic_class_names.add(sc.name)
+            if sc.name not in const_class_names:
+                # Undisclosed share class
+                share_classes.append(sc)
+
+    for i, sc in enumerate(share_classes):
+        scid = _slugify(sc.name + "-shares")
+        if scid not in node_ids:
+            undisclosed = sc.name in asic_class_names and sc.name not in const_class_names
+            vote_text = "voting" if sc.voting else "non-voting"
+            label = f"{sc.name} Shares\n{sc.quantity} issued\n{vote_text}" if sc.quantity else f"{sc.name} Shares"
+            if undisclosed:
+                label += "\n(Not in Constitution)"
+            nodes.append({"data": {
+                "id": scid,
+                "label": label,
+                "type": "ShareClass",
+                "name": sc.name,
+                "quantity": str(sc.quantity),
+                "undisclosed": undisclosed,
+            }})
+            node_ids.add(scid)
+            edges.append({"data": {
+                "id": f"e-sc-{i}",
+                "source": scid,
+                "target": company_id,
+                "type": "ISSUED_UNDER",
+                "label": sc.name + (" (Undisclosed)" if undisclosed else ""),
+            }})
+
+    # Shareholders (prefer register, fall back to ASIC)
+    reg_ent = entities_by_doc.get("shareholder_register")
+    shareholders = []
+    if reg_ent and reg_ent.shareholders:
+        shareholders = reg_ent.shareholders
+    elif asic_ent and asic_ent.shareholders:
+        shareholders = asic_ent.shareholders
+
+    for i, sh in enumerate(shareholders):
+        shid = _slugify(sh.name) + "-sh"
+        if shid not in node_ids:
+            label = f"{sh.name}\n{sh.quantity} {sh.share_class}"
+            nodes.append({"data": {
+                "id": shid,
+                "label": label,
+                "type": "Shareholder",
+                "name": sh.name,
+                "shares": str(sh.quantity),
+                "share_class": sh.share_class,
+            }})
+            node_ids.add(shid)
+
+        # Calculate ownership percentage
+        total = 0
+        for sc in share_classes:
+            if sc.name == sh.share_class and sc.quantity > 0:
+                total = sc.quantity
+                break
+        pct = f"{round(sh.quantity / total * 100)}%" if total > 0 else ""
+        edges.append({"data": {
+            "id": f"e-sh-{i}",
+            "source": shid,
+            "target": company_id,
+            "type": "OWNS",
+            "label": f"{pct} {sh.share_class}" if pct else sh.share_class,
+        }})
+
+    # Ultimate holding company
+    uhc_name = ""
+    if asic_ent and asic_ent.ultimate_holding_company:
+        uhc_name = asic_ent.ultimate_holding_company
+    if uhc_name and uhc_name.lower() not in ("none", "n/a", "nil", "none recorded", ""):
+        uhcid = _slugify(uhc_name)
+        if uhcid not in node_ids:
+            nodes.append({"data": {
+                "id": uhcid,
+                "label": uhc_name,
+                "type": "UltimateHoldingCompany",
+                "name": uhc_name,
+            }})
+            node_ids.add(uhcid)
+
+    # Add contradiction edges
+    for i, contra in enumerate(matter.contradictions):
+        c = contra if isinstance(contra, dict) else contra.model_dump()
+        edges.append({"data": {
+            "id": f"e-contra-{i}",
+            "source": company_id,
+            "target": company_id,
+            "type": "CONTRADICTION",
+            "label": c.get("typology_label", "Contradiction"),
+            "severity": c.get("severity", "medium"),
+            "contradiction_id": c.get("contradiction_id", ""),
+            "cosine_similarity": c.get("cosine_similarity", 0),
+        }})
+
+    graph_data = {"nodes": nodes, "edges": edges}
+    matter.graph_data = graph_data
+    return graph_data
+
+
 def build_fixture_graph(matter_id: str, fixture_id: str) -> dict:
     """
     Build a hardcoded graph for fixture data where entities are known.
