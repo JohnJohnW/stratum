@@ -106,8 +106,8 @@ async def lifespan(app: FastAPI):
         chunks_data = db_get_chunks(mid)
         contras = db_get_contradictions(mid)
         docs_data = db_get_documents(mid)
-        if matter_data and chunks_data:
-            load_matter_from_db(matter_data, chunks_data, contras, docs_data)
+        if matter_data:
+            load_matter_from_db(matter_data, chunks_data or [], contras, docs_data)
     if existing:
         logger.info("Restored %d matter(s) from database.", len(existing))
 

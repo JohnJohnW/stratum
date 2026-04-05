@@ -411,14 +411,55 @@ def build_graph_from_entities(matter_id: str, entities_by_doc: dict) -> dict:
                 "name": uhc_name,
             }})
             node_ids.add(uhcid)
+            edges.append({"data": {
+                "id": "e-uhc",
+                "source": uhcid,
+                "target": company_id,
+                "type": "CONTROLS",
+                "label": "Ultimate Holding Company",
+            }})
 
-    # Add contradiction edges
+    # Add contradiction edges, mapping to relevant node pairs
+    all_node_ids = [n["data"]["id"] for n in nodes]
     for i, contra in enumerate(matter.contradictions):
         c = contra if isinstance(contra, dict) else contra.model_dump()
+        typology_id = c.get("typology_id", "")
+        source_doc = c.get("source_doc_type", "")
+        target_doc = c.get("target_doc_type", "")
+
+        # Map contradiction to relevant graph nodes based on typology
+        src, tgt = company_id, company_id
+        if "nominee" in typology_id or "trust" in typology_id:
+            # Find a corporate shareholder node (likely nominee)
+            nominee_nodes = [n["data"]["id"] for n in nodes
+                            if n["data"].get("type") == "Shareholder"
+                            and "pty" in n["data"].get("name", "").lower()]
+            if nominee_nodes:
+                src = nominee_nodes[0]
+                tgt = company_id
+        elif "share_class" in typology_id or "undisclosed" in typology_id:
+            # Find undisclosed share class node
+            undisclosed_nodes = [n["data"]["id"] for n in nodes
+                                if n["data"].get("undisclosed")]
+            if undisclosed_nodes:
+                src = undisclosed_nodes[0]
+                # Link to the first non-undisclosed share class
+                normal_sc = [n["data"]["id"] for n in nodes
+                             if n["data"].get("type") == "ShareClass"
+                             and not n["data"].get("undisclosed")]
+                tgt = normal_sc[0] if normal_sc else company_id
+        elif "layered" in typology_id or "concealment" in typology_id:
+            # Find a sole signatory director
+            sole_dirs = [n["data"]["id"] for n in nodes
+                         if n["data"].get("sole_signatory")]
+            if sole_dirs:
+                src = sole_dirs[0]
+                tgt = company_id
+
         edges.append({"data": {
             "id": f"e-contra-{i}",
-            "source": company_id,
-            "target": company_id,
+            "source": src,
+            "target": tgt,
             "type": "CONTRADICTION",
             "label": c.get("typology_label", "Contradiction"),
             "severity": c.get("severity", "medium"),
