@@ -268,6 +268,7 @@ def build_fixture_graph(matter_id: str, fixture_id: str) -> dict:
         "type": "Director",
         "name": "James Mitchell",
         "appointment_date": "01/07/2020",
+        "sole_signatory": fixture_id == "B",
     }})
     nodes.append({"data": {
         "id": "sarah-blackwood",

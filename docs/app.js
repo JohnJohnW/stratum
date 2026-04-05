@@ -2,6 +2,10 @@ const { useState, useEffect, useRef, useCallback, createContext, useContext } = 
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function cn(...c) { return c.filter(Boolean).join(' ') }
+function parseOwnershipPct(label) {
+  const m = (label || '').match(/^(\d+)%/)
+  return m ? parseInt(m[1], 10) : 0
+}
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const BRAND_GRAD   = 'linear-gradient(135deg, #4338ca 0%, #7c3aed 100%)'
@@ -64,8 +68,21 @@ const CY_STYLE = [
     color: '#64748b', 'text-background-color': '#fafafa', 'text-background-opacity': 0.95,
     'text-background-padding': '2px',
   }},
-  { selector: 'edge[type="CONTROLS"]', style: { 'line-color': '#818cf8', 'target-arrow-color': '#818cf8', width: 1.5 }},
-  { selector: 'edge[type="OWNS"]',     style: { 'line-color': '#34d399', 'target-arrow-color': '#34d399', width: 2 }},
+  { selector: 'edge[type="CONTROLS"]', style: {
+    'line-color': '#818cf8', 'target-arrow-color': '#818cf8', width: 1.5,
+    'font-size': '10px', 'font-weight': '600', color: '#3730a3',
+    'text-background-color': '#e0e7ff', 'text-background-opacity': 1, 'text-background-padding': '3px',
+    'text-border-width': 1, 'text-border-color': '#a5b4fc', 'text-border-opacity': 1,
+    'text-background-shape': 'roundrectangle',
+  }},
+  { selector: 'edge[type="OWNS"]', style: {
+    'line-color': '#34d399', 'target-arrow-color': '#34d399',
+    width: 'mapData(ownershipPct, 0, 100, 1.5, 5)',
+    'font-size': '11px', 'font-weight': '700', color: '#065f46',
+    'text-background-color': '#d1fae5', 'text-background-opacity': 1, 'text-background-padding': '4px',
+    'text-border-width': 1, 'text-border-color': '#6ee7b7', 'text-border-opacity': 1,
+    'text-background-shape': 'roundrectangle',
+  }},
   { selector: 'edge[type="ISSUED_UNDER"]', style: {
     'line-color': '#fbbf24', 'target-arrow-color': '#fbbf24', 'line-style': 'dashed', 'line-dash-pattern': [5, 3],
   }},
@@ -260,6 +277,100 @@ function Callout({ children, title, variant = 'default' }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // App-specific components
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ── Node Popover ──────────────────────────────────────────────────────────────
+function NodePopover({ data, x, y, graphData, onClose }) {
+  if (!data) return null
+
+  const allNodes = (graphData.nodes || []).map(n => n.data || n)
+  const allEdges = (graphData.edges || []).map(e => e.data || e)
+  const type = data.type
+  const lines = []
+  const warnings = []
+
+  if (type === 'Company') {
+    const directors = allNodes.filter(n => n.type === 'Director')
+    const shareholders = allNodes.filter(n => n.type === 'Shareholder')
+    const totalShares = shareholders.reduce((s, n) => s + parseInt(n.shares || 0, 10), 0)
+    lines.push(`${directors.length} director${directors.length !== 1 ? 's' : ''}`)
+    lines.push(`${shareholders.length} shareholder${shareholders.length !== 1 ? 's' : ''}`)
+    if (totalShares > 0) lines.push(`${totalShares.toLocaleString()} total shares`)
+    if (data.acn) lines.push(`ACN ${data.acn}`)
+  } else if (type === 'Director') {
+    if (data.appointment_date) lines.push(`Appointed ${data.appointment_date}`)
+    const edge = allEdges.find(e => e.source === data.id && e.type === 'CONTROLS')
+    if (edge) lines.push(edge.label)
+    if (data.sole_signatory) warnings.push('SOLE SIGNATORY AUTHORITY')
+  } else if (type === 'Shareholder') {
+    const shares = parseInt(data.shares || 0, 10)
+    const cls = data.share_class || 'Unknown'
+    lines.push(`${shares.toLocaleString()} ${cls} Shares`)
+    const classNode = allNodes.find(n => n.type === 'ShareClass' && n.name === cls)
+    if (classNode && parseInt(classNode.quantity, 10) > 0) {
+      const pct = Math.round((shares / parseInt(classNode.quantity, 10)) * 100)
+      lines.push(`${pct}% of ${cls} class`)
+    }
+    if (/Pty\s+Ltd/i.test(data.name)) warnings.push('Corporate shareholder (potential nominee)')
+  } else if (type === 'ShareClass') {
+    if (data.quantity) lines.push(`${parseInt(data.quantity, 10).toLocaleString()} issued`)
+    if (data.undisclosed) warnings.push('NOT IN CONSTITUTION')
+  } else if (type === 'UltimateHoldingCompany') {
+    lines.push('Ultimate Holding Company')
+  }
+
+  const typeColors = {
+    Company: '#1e293b', Director: '#4f46e5', Shareholder: '#059669',
+    ShareClass: '#b45309', UltimateHoldingCompany: '#7c3aed',
+  }
+  const typeColor = typeColors[type] || '#64748b'
+  const displayType = type === 'ShareClass' ? 'Share Class'
+    : type === 'UltimateHoldingCompany' ? 'Holding Co.' : type
+
+  return (
+    <div
+      className="panel-slide"
+      style={{
+        position: 'absolute',
+        left: Math.min(x + 12, 700),
+        top: Math.max(y - 30, 8),
+        zIndex: 60,
+        width: 230,
+        background: '#fff',
+        border: '1px solid #e8ecf0',
+        borderRadius: 12,
+        boxShadow: '0 8px 32px rgba(15,23,42,0.12), 0 2px 8px rgba(15,23,42,0.08)',
+        padding: '10px 12px',
+        pointerEvents: 'auto',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <span style={{
+          display: 'inline-block', width: 8, height: 8, borderRadius: type === 'ShareClass' ? 0 : '50%',
+          transform: type === 'ShareClass' ? 'rotate(45deg)' : 'none',
+          background: typeColor, flexShrink: 0,
+        }} />
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: typeColor }}>
+          {displayType}
+        </span>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 6, lineHeight: 1.3 }}>
+        {data.name}
+      </div>
+      {lines.map((line, i) => (
+        <div key={i} style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>{line}</div>
+      ))}
+      {warnings.map((w, i) => (
+        <div key={`w${i}`} style={{
+          marginTop: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: '0.04em',
+          background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c',
+          padding: '3px 7px', borderRadius: 6,
+        }}>
+          {w}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function SevBadge({ severity, sm }) {
   const s = SEV[severity] ?? SEV.medium
@@ -462,6 +573,8 @@ function App() {
   const [loading, setLoading]               = useState(false)
   const [detailTab, setDetailTab]           = useState('evidence')
   const [viewingDoc, setViewingDoc]         = useState(null)
+  const [nodePopover, setNodePopover]       = useState(null)
+  const [hiddenTypes, setHiddenTypes]       = useState(new Set())
 
   const wsRef        = useRef(null)
   const cyRef        = useRef(null)
@@ -508,7 +621,11 @@ function App() {
     if (cyRef.current) cyRef.current.destroy()
     const elements = [
       ...graphData.nodes.map(n => ({ group: 'nodes', data: n.data || n })),
-      ...graphData.edges.map(e => ({ group: 'edges', data: e.data || e })),
+      ...graphData.edges.map(e => {
+        const d = { ...(e.data || e) }
+        if (d.type === 'OWNS') d.ownershipPct = parseOwnershipPct(d.label)
+        return { group: 'edges', data: d }
+      }),
     ]
     const cy = cytoscape({
       container: cyElRef.current, elements, style: CY_STYLE,
@@ -520,9 +637,24 @@ function App() {
     cy.on('tap', 'edge[type="CONTRADICTION"]', evt => {
       const cid = evt.target.data('contradiction_id')
       const c = contradictions.find(x => x.contradiction_id === cid)
-      if (c) setSelected(c)
+      if (c) {
+        setSelected(c)
+        setNodePopover(null)
+      }
     })
-    cy.on('tap', evt => { if (evt.target === cy) setSelected(null) })
+    cy.on('tap', 'node', evt => {
+      const node = evt.target
+      const pos = node.renderedPosition()
+      setNodePopover({ data: node.data(), x: pos.x, y: pos.y })
+      setSelected(null)
+    })
+    cy.on('tap', evt => {
+      if (evt.target === cy) {
+        setSelected(null)
+        setNodePopover(null)
+      }
+    })
+    cy.on('pan', () => setNodePopover(null))
     cyRef.current = cy
   }, [graphData, contradictions])
 
@@ -540,6 +672,29 @@ function App() {
     }
   }, [selected])
 
+  // ── Filter by node type ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!cyRef.current) return
+    const cy = cyRef.current
+    cy.nodes().forEach(node => {
+      const type = node.data('type')
+      if (hiddenTypes.has(type)) {
+        node.hide()
+      } else {
+        node.show()
+      }
+    })
+    cy.edges().forEach(edge => {
+      const srcType = edge.source().data('type')
+      const tgtType = edge.target().data('type')
+      if (hiddenTypes.has(srcType) || hiddenTypes.has(tgtType)) {
+        edge.hide()
+      } else {
+        edge.show()
+      }
+    })
+  }, [hiddenTypes, graphData])
+
   const fit = () => cyRef.current?.fit(undefined, 48)
 
   // ── Load fixture ───────────────────────────────────────────────────────────
@@ -549,6 +704,9 @@ function App() {
     setContradictions([])
     setSelected(null)
     setMatter(null)
+    setNodePopover(null)
+    setViewingDoc(null)
+    setHiddenTypes(new Set())
     setStatus({ phase: 'loading', message: `Analysing Fixture ${fixture}...`, progress: 0.05 })
     try {
       let matterData, graphResult, cons
@@ -976,23 +1134,46 @@ function App() {
               boxShadow: '0 2px 16px rgba(15,23,42,0.07)',
               backdropFilter: 'blur(8px)', minWidth: 126,
             }}>
-              <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 9 }}>
-                Legend
+              <div style={{ marginBottom: 9 }}>
+                <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8' }}>
+                  Legend
+                </div>
+                <div style={{ fontSize: 7.5, color: '#cbd5e1', marginTop: 1 }}>Click to filter</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {[
-                  { color: '#1e293b', shape: 'r', label: 'Company' },
-                  { color: '#4f46e5', shape: 'c', label: 'Director' },
-                  { color: '#059669', shape: 'c', label: 'Shareholder' },
-                  { color: '#b45309', shape: 'd', label: 'Share Class' },
-                ].map(n => (
-                  <div key={n.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#475569' }}>
-                    {n.shape === 'r' && <div style={{ width: 13, height: 8,  background: n.color, borderRadius: 2, flexShrink: 0 }} />}
-                    {n.shape === 'c' && <div style={{ width: 9,  height: 9,  background: n.color, borderRadius: '50%', flexShrink: 0 }} />}
-                    {n.shape === 'd' && <div style={{ width: 8,  height: 8,  background: n.color, transform: 'rotate(45deg)', flexShrink: 0 }} />}
-                    {n.label}
-                  </div>
-                ))}
+                  { color: '#1e293b', shape: 'r', label: 'Company',     type: 'Company' },
+                  { color: '#4f46e5', shape: 'c', label: 'Director',    type: 'Director' },
+                  { color: '#059669', shape: 'c', label: 'Shareholder', type: 'Shareholder' },
+                  { color: '#b45309', shape: 'd', label: 'Share Class', type: 'ShareClass' },
+                ].map(n => {
+                  const isHidden = hiddenTypes.has(n.type)
+                  return (
+                    <div
+                      key={n.label}
+                      onClick={() => {
+                        setHiddenTypes(prev => {
+                          const next = new Set(prev)
+                          if (next.has(n.type)) next.delete(n.type)
+                          else next.add(n.type)
+                          return next
+                        })
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        fontSize: 11, color: isHidden ? '#cbd5e1' : '#475569',
+                        cursor: 'pointer', userSelect: 'none',
+                        opacity: isHidden ? 0.45 : 1,
+                        transition: 'opacity 0.15s, color 0.15s',
+                      }}
+                    >
+                      {n.shape === 'r' && <div style={{ width: 13, height: 8,  background: isHidden ? '#e2e8f0' : n.color, borderRadius: 2, flexShrink: 0, transition: 'background 0.15s' }} />}
+                      {n.shape === 'c' && <div style={{ width: 9,  height: 9,  background: isHidden ? '#e2e8f0' : n.color, borderRadius: '50%', flexShrink: 0, transition: 'background 0.15s' }} />}
+                      {n.shape === 'd' && <div style={{ width: 8,  height: 8,  background: isHidden ? '#e2e8f0' : n.color, transform: 'rotate(45deg)', flexShrink: 0, transition: 'background 0.15s' }} />}
+                      <span style={{ textDecoration: isHidden ? 'line-through' : 'none', transition: 'text-decoration 0.15s' }}>{n.label}</span>
+                    </div>
+                  )
+                })}
               </div>
               <Separator className="my-2.5" />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -1008,6 +1189,17 @@ function App() {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* ── Node Popover ──────────────────────────────────────────────── */}
+          {nodePopover && !selected && !viewingDoc && (
+            <NodePopover
+              data={nodePopover.data}
+              x={nodePopover.x}
+              y={nodePopover.y}
+              graphData={graphData}
+              onClose={() => setNodePopover(null)}
+            />
           )}
 
           {/* ── Document Viewer Panel ────────────────────────────────────── */}
