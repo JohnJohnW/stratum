@@ -1,19 +1,19 @@
 const STATIC_FIXTURES = {
   "A": {
     "matter": {
-      "matter_id": "17fcfd36-daca-4948-bfc2-096504760907",
+      "matter_id": "45f79c90-a770-49d8-9ded-8c09931f72a4",
       "entity_name": "Fixture Holdings Pty Ltd",
       "acn": "000 000 001",
       "documents": [
         {
-          "document_id": "1d345b67-86fa-4b52-96cb-6f6fc3dd8987",
-          "matter_id": "17fcfd36-daca-4948-bfc2-096504760907",
+          "document_id": "f240d3b0-a764-408a-85ff-1a0b35cdc185",
+          "matter_id": "45f79c90-a770-49d8-9ded-8c09931f72a4",
           "filename": "ASIC_Extract_FixtureHoldings.pdf",
           "doc_type": "asic_extract",
           "chunks": [
             {
-              "chunk_id": "d4032ccb-ee96-48f2-8d8d-3a46ed3d0291",
-              "document_id": "1d345b67-86fa-4b52-96cb-6f6fc3dd8987",
+              "chunk_id": "7077140e-216b-46fc-8853-0a67d01c0e8a",
+              "document_id": "f240d3b0-a764-408a-85ff-1a0b35cdc185",
               "document_source": "asic_extract",
               "section_type": "officeholders",
               "page_number": 1,
@@ -21,8 +21,8 @@ const STATIC_FIXTURES = {
               "embedding_index": 0
             },
             {
-              "chunk_id": "43b4536f-58c3-42b3-93fb-976e090a66c7",
-              "document_id": "1d345b67-86fa-4b52-96cb-6f6fc3dd8987",
+              "chunk_id": "c83b4211-424c-4525-94d5-a12aa4eb6c97",
+              "document_id": "f240d3b0-a764-408a-85ff-1a0b35cdc185",
               "document_source": "asic_extract",
               "section_type": "share_structure",
               "page_number": 1,
@@ -30,8 +30,8 @@ const STATIC_FIXTURES = {
               "embedding_index": 1
             },
             {
-              "chunk_id": "6dbf06d9-d952-48d6-b3aa-a81ba9753ef8",
-              "document_id": "1d345b67-86fa-4b52-96cb-6f6fc3dd8987",
+              "chunk_id": "5329c95b-09c3-42ed-96eb-473d0c710cc0",
+              "document_id": "f240d3b0-a764-408a-85ff-1a0b35cdc185",
               "document_source": "asic_extract",
               "section_type": "general",
               "page_number": 1,
@@ -44,14 +44,14 @@ const STATIC_FIXTURES = {
           "sha256_hash": "66a80b8b86961908fb92c02af1583a233d28fbbf58c3277418b7db0f924d9d11"
         },
         {
-          "document_id": "50e8fdab-0a1f-4a9a-aa7c-ff20e81dadca",
-          "matter_id": "17fcfd36-daca-4948-bfc2-096504760907",
+          "document_id": "fc34f09e-51fc-45c1-a6b7-4471f11107e2",
+          "matter_id": "45f79c90-a770-49d8-9ded-8c09931f72a4",
           "filename": "Constitution_FixtureHoldings.pdf",
           "doc_type": "constitution",
           "chunks": [
             {
-              "chunk_id": "c19a9ba0-7641-418d-9326-9f1a01355609",
-              "document_id": "50e8fdab-0a1f-4a9a-aa7c-ff20e81dadca",
+              "chunk_id": "d9bd068f-c139-40eb-8c80-a6606bde92e0",
+              "document_id": "fc34f09e-51fc-45c1-a6b7-4471f11107e2",
               "document_source": "constitution",
               "section_type": "share_classes",
               "page_number": 1,
@@ -59,8 +59,8 @@ const STATIC_FIXTURES = {
               "embedding_index": 3
             },
             {
-              "chunk_id": "8cbe0408-dcde-4669-9e39-b01cc4138fbf",
-              "document_id": "50e8fdab-0a1f-4a9a-aa7c-ff20e81dadca",
+              "chunk_id": "9a6aaf7f-eaa5-416f-90e8-4f2d644465aa",
+              "document_id": "fc34f09e-51fc-45c1-a6b7-4471f11107e2",
               "document_source": "constitution",
               "section_type": "nominee_provisions",
               "page_number": 1,
@@ -68,8 +68,8 @@ const STATIC_FIXTURES = {
               "embedding_index": 4
             },
             {
-              "chunk_id": "fb373460-2fca-4c77-bb60-fb659cf2f8fb",
-              "document_id": "50e8fdab-0a1f-4a9a-aa7c-ff20e81dadca",
+              "chunk_id": "13c7b637-3a8f-4eda-90d4-459d6f9076b6",
+              "document_id": "fc34f09e-51fc-45c1-a6b7-4471f11107e2",
               "document_source": "constitution",
               "section_type": "quorum",
               "page_number": 1,
@@ -82,14 +82,14 @@ const STATIC_FIXTURES = {
           "sha256_hash": "dd137c126623f5dfb4ae4b79b44803abb8b06c1121bad699fdebcc5de0c8ab47"
         },
         {
-          "document_id": "dc0ce807-6048-46d0-8b75-5588ee7b6839",
-          "matter_id": "17fcfd36-daca-4948-bfc2-096504760907",
+          "document_id": "ac336513-5f09-4ede-af0e-f4bd907cd75d",
+          "matter_id": "45f79c90-a770-49d8-9ded-8c09931f72a4",
           "filename": "ShareRegister_FixtureHoldings.pdf",
           "doc_type": "shareholder_register",
           "chunks": [
             {
-              "chunk_id": "ffe5071f-d9aa-4755-b70c-397a241c27f0",
-              "document_id": "dc0ce807-6048-46d0-8b75-5588ee7b6839",
+              "chunk_id": "8d499475-412b-4a6e-a4fe-2cdeb5ab071c",
+              "document_id": "ac336513-5f09-4ede-af0e-f4bd907cd75d",
               "document_source": "shareholder_register",
               "section_type": "shareholder_entry",
               "page_number": 1,
@@ -399,19 +399,19 @@ const STATIC_FIXTURES = {
   },
   "B": {
     "matter": {
-      "matter_id": "60841872-2745-40f1-91cd-82fad13f1512",
+      "matter_id": "874261bc-3313-4f64-930b-eac33cc473a4",
       "entity_name": "Fixture Holdings Pty Ltd",
       "acn": "000 000 001",
       "documents": [
         {
-          "document_id": "04ea567f-db72-41fa-b22b-9b9e8a854685",
-          "matter_id": "60841872-2745-40f1-91cd-82fad13f1512",
+          "document_id": "cb15d41c-4d4f-4855-9cfc-86dc7c397697",
+          "matter_id": "874261bc-3313-4f64-930b-eac33cc473a4",
           "filename": "ASIC_Extract_FixtureHoldings.pdf",
           "doc_type": "asic_extract",
           "chunks": [
             {
-              "chunk_id": "43db5fd6-19d0-43ea-b150-717bca1b0d30",
-              "document_id": "04ea567f-db72-41fa-b22b-9b9e8a854685",
+              "chunk_id": "58cc69fd-2d09-4ae7-8e76-e9e35c2c1aac",
+              "document_id": "cb15d41c-4d4f-4855-9cfc-86dc7c397697",
               "document_source": "asic_extract",
               "section_type": "officeholders",
               "page_number": 1,
@@ -419,8 +419,8 @@ const STATIC_FIXTURES = {
               "embedding_index": 0
             },
             {
-              "chunk_id": "c136f0b2-45bf-401d-b345-138ed7a838fa",
-              "document_id": "04ea567f-db72-41fa-b22b-9b9e8a854685",
+              "chunk_id": "7a221123-3a0f-469e-89e3-412785bfa1e8",
+              "document_id": "cb15d41c-4d4f-4855-9cfc-86dc7c397697",
               "document_source": "asic_extract",
               "section_type": "share_structure",
               "page_number": 1,
@@ -428,8 +428,8 @@ const STATIC_FIXTURES = {
               "embedding_index": 1
             },
             {
-              "chunk_id": "87ef4acd-a654-4a84-af7a-26d72d8f5fdc",
-              "document_id": "04ea567f-db72-41fa-b22b-9b9e8a854685",
+              "chunk_id": "eb2521c2-98f6-4677-9648-0e71267b01f3",
+              "document_id": "cb15d41c-4d4f-4855-9cfc-86dc7c397697",
               "document_source": "asic_extract",
               "section_type": "general",
               "page_number": 1,
@@ -442,14 +442,14 @@ const STATIC_FIXTURES = {
           "sha256_hash": "04e8f99b654cefc1c30322f9787472714400d3b0aa8b865ed8d2f4ba94efba9f"
         },
         {
-          "document_id": "91bf0da2-e73e-4889-ab6b-fed2646d364a",
-          "matter_id": "60841872-2745-40f1-91cd-82fad13f1512",
+          "document_id": "85380f1c-0fc8-4a4b-940b-11f103d639ee",
+          "matter_id": "874261bc-3313-4f64-930b-eac33cc473a4",
           "filename": "Constitution_FixtureHoldings.pdf",
           "doc_type": "constitution",
           "chunks": [
             {
-              "chunk_id": "c94d9972-d825-486f-97cb-6a59345ab2ca",
-              "document_id": "91bf0da2-e73e-4889-ab6b-fed2646d364a",
+              "chunk_id": "f93f8ad3-a268-4b1f-8fd9-29cbfa3cdcc6",
+              "document_id": "85380f1c-0fc8-4a4b-940b-11f103d639ee",
               "document_source": "constitution",
               "section_type": "share_classes",
               "page_number": 1,
@@ -457,8 +457,8 @@ const STATIC_FIXTURES = {
               "embedding_index": 3
             },
             {
-              "chunk_id": "e7553ec8-5a6c-472d-88c1-94f1d952d2c3",
-              "document_id": "91bf0da2-e73e-4889-ab6b-fed2646d364a",
+              "chunk_id": "48bee8a5-0905-46d1-8571-0b5fc34d0a0a",
+              "document_id": "85380f1c-0fc8-4a4b-940b-11f103d639ee",
               "document_source": "constitution",
               "section_type": "quorum",
               "page_number": 1,
@@ -466,8 +466,8 @@ const STATIC_FIXTURES = {
               "embedding_index": 4
             },
             {
-              "chunk_id": "263953e2-e7e1-4dd2-80ac-5bebc6088588",
-              "document_id": "91bf0da2-e73e-4889-ab6b-fed2646d364a",
+              "chunk_id": "5342cc3a-4b56-48ef-8221-3ce85e1fdfd9",
+              "document_id": "85380f1c-0fc8-4a4b-940b-11f103d639ee",
               "document_source": "constitution",
               "section_type": "nominee_provisions",
               "page_number": 1,
@@ -480,14 +480,14 @@ const STATIC_FIXTURES = {
           "sha256_hash": "99fa9358b11f84e2b5302084172197f70238e12bb9ed79b06c519cec9a2fa4e8"
         },
         {
-          "document_id": "a69f75bc-db97-4609-940c-cb1448f402a2",
-          "matter_id": "60841872-2745-40f1-91cd-82fad13f1512",
+          "document_id": "6c93dda2-a45d-49e2-b2fb-24cf7dbe3827",
+          "matter_id": "874261bc-3313-4f64-930b-eac33cc473a4",
           "filename": "ShareRegister_FixtureHoldings.pdf",
           "doc_type": "shareholder_register",
           "chunks": [
             {
-              "chunk_id": "72ad0106-4250-44bd-96b7-047a9ff98fe9",
-              "document_id": "a69f75bc-db97-4609-940c-cb1448f402a2",
+              "chunk_id": "acc708a9-b52d-4c67-b1b8-9927103e9f39",
+              "document_id": "6c93dda2-a45d-49e2-b2fb-24cf7dbe3827",
               "document_source": "shareholder_register",
               "section_type": "shareholder_entry",
               "page_number": 1,
@@ -502,14 +502,14 @@ const STATIC_FIXTURES = {
       ],
       "contradictions": [
         {
-          "contradiction_id": "74949439-8d3e-46cf-b4bd-d1a0e57b57da",
-          "matter_id": "60841872-2745-40f1-91cd-82fad13f1512",
-          "source_chunk_id": "72ad0106-4250-44bd-96b7-047a9ff98fe9",
+          "contradiction_id": "2d42b64c-8fc7-4396-a410-88cd9c22cbdc",
+          "matter_id": "874261bc-3313-4f64-930b-eac33cc473a4",
+          "source_chunk_id": "acc708a9-b52d-4c67-b1b8-9927103e9f39",
           "source_document": "ShareRegister_FixtureHoldings.pdf",
           "source_doc_type": "shareholder_register",
           "source_section": "shareholder_entry",
           "source_text": "Pacific Trust Services Pty Ltd holds 600 Ordinary Shares as nominee for an undisclosed beneficial owner. The identity of the true beneficial owner behind this nominee arrangement has NOT been disclosed to the Company Secretary. No nominee arrangement documentation has been provided or recorded.",
-          "target_chunk_id": "263953e2-e7e1-4dd2-80ac-5bebc6088588",
+          "target_chunk_id": "5342cc3a-4b56-48ef-8221-3ce85e1fdfd9",
           "target_document": "Constitution_FixtureHoldings.pdf",
           "target_doc_type": "constitution",
           "target_section": "nominee_provisions",
@@ -525,14 +525,14 @@ const STATIC_FIXTURES = {
           "confirmed": false
         },
         {
-          "contradiction_id": "6c1bc67d-5cf7-4dec-b062-baa1297053d2",
-          "matter_id": "60841872-2745-40f1-91cd-82fad13f1512",
-          "source_chunk_id": "c136f0b2-45bf-401d-b345-138ed7a838fa",
+          "contradiction_id": "02338204-7ddb-444a-85a8-d867c36aecb3",
+          "matter_id": "874261bc-3313-4f64-930b-eac33cc473a4",
+          "source_chunk_id": "7a221123-3a0f-469e-89e3-412785bfa1e8",
           "source_document": "ASIC_Extract_FixtureHoldings.pdf",
           "source_doc_type": "asic_extract",
           "source_section": "share_structure",
           "source_text": "The company has issued three classes of shares: Ordinary Shares, Class B Preference Shares, and Class C Convertible Preference Shares. Class C Convertible Preference Shares are a distinct third class convertible to Ordinary Shares at a 1:1 ratio, recorded in the capital structure.",
-          "target_chunk_id": "c94d9972-d825-486f-97cb-6a59345ab2ca",
+          "target_chunk_id": "f93f8ad3-a268-4b1f-8fd9-29cbfa3cdcc6",
           "target_document": "Constitution_FixtureHoldings.pdf",
           "target_doc_type": "constitution",
           "target_section": "share_classes",
@@ -548,14 +548,14 @@ const STATIC_FIXTURES = {
           "confirmed": false
         },
         {
-          "contradiction_id": "60658d50-04eb-4552-97c5-77e2418db0a8",
-          "matter_id": "60841872-2745-40f1-91cd-82fad13f1512",
-          "source_chunk_id": "43db5fd6-19d0-43ea-b150-717bca1b0d30",
+          "contradiction_id": "ebec1004-82d6-43c7-88d4-8e2a5e0e0f21",
+          "matter_id": "874261bc-3313-4f64-930b-eac33cc473a4",
+          "source_chunk_id": "58cc69fd-2d09-4ae7-8e76-e9e35c2c1aac",
           "source_document": "ASIC_Extract_FixtureHoldings.pdf",
           "source_doc_type": "asic_extract",
           "source_section": "officeholders",
           "source_text": "James Mitchell is the sole director. He holds sole and exclusive signing authority without restriction. A single director exercises complete unilateral authority to execute any contract of any value. No co-signature or second director approval is required for any transaction.",
-          "target_chunk_id": "e7553ec8-5a6c-472d-88c1-94f1d952d2c3",
+          "target_chunk_id": "48bee8a5-0905-46d1-8571-0b5fc34d0a0a",
           "target_document": "Constitution_FixtureHoldings.pdf",
           "target_doc_type": "constitution",
           "target_section": "quorum",
@@ -741,7 +741,7 @@ const STATIC_FIXTURES = {
               "type": "CONTRADICTION",
               "label": "Trust Structure Concealing Beneficial Ownership",
               "severity": "critical",
-              "contradiction_id": "74949439-8d3e-46cf-b4bd-d1a0e57b57da",
+              "contradiction_id": "2d42b64c-8fc7-4396-a410-88cd9c22cbdc",
               "cosine_similarity": 0.7926732301712036
             }
           },
@@ -753,7 +753,7 @@ const STATIC_FIXTURES = {
               "type": "CONTRADICTION",
               "label": "Complex Layered Ownership Obscuring Control",
               "severity": "high",
-              "contradiction_id": "6c1bc67d-5cf7-4dec-b062-baa1297053d2",
+              "contradiction_id": "02338204-7ddb-444a-85a8-d867c36aecb3",
               "cosine_similarity": 0.8472826480865479
             }
           },
@@ -765,7 +765,7 @@ const STATIC_FIXTURES = {
               "type": "CONTRADICTION",
               "label": "Shelf Company Acquisition and Rapid Ownership Transfer",
               "severity": "medium",
-              "contradiction_id": "60658d50-04eb-4552-97c5-77e2418db0a8",
+              "contradiction_id": "ebec1004-82d6-43c7-88d4-8e2a5e0e0f21",
               "cosine_similarity": 0.8457558751106262
             }
           }
@@ -943,7 +943,7 @@ const STATIC_FIXTURES = {
             "type": "CONTRADICTION",
             "label": "Trust Structure Concealing Beneficial Ownership",
             "severity": "critical",
-            "contradiction_id": "74949439-8d3e-46cf-b4bd-d1a0e57b57da",
+            "contradiction_id": "2d42b64c-8fc7-4396-a410-88cd9c22cbdc",
             "cosine_similarity": 0.7926732301712036
           }
         },
@@ -955,7 +955,7 @@ const STATIC_FIXTURES = {
             "type": "CONTRADICTION",
             "label": "Complex Layered Ownership Obscuring Control",
             "severity": "high",
-            "contradiction_id": "6c1bc67d-5cf7-4dec-b062-baa1297053d2",
+            "contradiction_id": "02338204-7ddb-444a-85a8-d867c36aecb3",
             "cosine_similarity": 0.8472826480865479
           }
         },
@@ -967,7 +967,7 @@ const STATIC_FIXTURES = {
             "type": "CONTRADICTION",
             "label": "Shelf Company Acquisition and Rapid Ownership Transfer",
             "severity": "medium",
-            "contradiction_id": "60658d50-04eb-4552-97c5-77e2418db0a8",
+            "contradiction_id": "ebec1004-82d6-43c7-88d4-8e2a5e0e0f21",
             "cosine_similarity": 0.8457558751106262
           }
         }
@@ -975,14 +975,14 @@ const STATIC_FIXTURES = {
     },
     "contradictions": [
       {
-        "contradiction_id": "74949439-8d3e-46cf-b4bd-d1a0e57b57da",
-        "matter_id": "60841872-2745-40f1-91cd-82fad13f1512",
-        "source_chunk_id": "72ad0106-4250-44bd-96b7-047a9ff98fe9",
+        "contradiction_id": "2d42b64c-8fc7-4396-a410-88cd9c22cbdc",
+        "matter_id": "874261bc-3313-4f64-930b-eac33cc473a4",
+        "source_chunk_id": "acc708a9-b52d-4c67-b1b8-9927103e9f39",
         "source_document": "ShareRegister_FixtureHoldings.pdf",
         "source_doc_type": "shareholder_register",
         "source_section": "shareholder_entry",
         "source_text": "Pacific Trust Services Pty Ltd holds 600 Ordinary Shares as nominee for an undisclosed beneficial owner. The identity of the true beneficial owner behind this nominee arrangement has NOT been disclosed to the Company Secretary. No nominee arrangement documentation has been provided or recorded.",
-        "target_chunk_id": "263953e2-e7e1-4dd2-80ac-5bebc6088588",
+        "target_chunk_id": "5342cc3a-4b56-48ef-8221-3ce85e1fdfd9",
         "target_document": "Constitution_FixtureHoldings.pdf",
         "target_doc_type": "constitution",
         "target_section": "nominee_provisions",
@@ -998,14 +998,14 @@ const STATIC_FIXTURES = {
         "confirmed": false
       },
       {
-        "contradiction_id": "6c1bc67d-5cf7-4dec-b062-baa1297053d2",
-        "matter_id": "60841872-2745-40f1-91cd-82fad13f1512",
-        "source_chunk_id": "c136f0b2-45bf-401d-b345-138ed7a838fa",
+        "contradiction_id": "02338204-7ddb-444a-85a8-d867c36aecb3",
+        "matter_id": "874261bc-3313-4f64-930b-eac33cc473a4",
+        "source_chunk_id": "7a221123-3a0f-469e-89e3-412785bfa1e8",
         "source_document": "ASIC_Extract_FixtureHoldings.pdf",
         "source_doc_type": "asic_extract",
         "source_section": "share_structure",
         "source_text": "The company has issued three classes of shares: Ordinary Shares, Class B Preference Shares, and Class C Convertible Preference Shares. Class C Convertible Preference Shares are a distinct third class convertible to Ordinary Shares at a 1:1 ratio, recorded in the capital structure.",
-        "target_chunk_id": "c94d9972-d825-486f-97cb-6a59345ab2ca",
+        "target_chunk_id": "f93f8ad3-a268-4b1f-8fd9-29cbfa3cdcc6",
         "target_document": "Constitution_FixtureHoldings.pdf",
         "target_doc_type": "constitution",
         "target_section": "share_classes",
@@ -1021,14 +1021,14 @@ const STATIC_FIXTURES = {
         "confirmed": false
       },
       {
-        "contradiction_id": "60658d50-04eb-4552-97c5-77e2418db0a8",
-        "matter_id": "60841872-2745-40f1-91cd-82fad13f1512",
-        "source_chunk_id": "43db5fd6-19d0-43ea-b150-717bca1b0d30",
+        "contradiction_id": "ebec1004-82d6-43c7-88d4-8e2a5e0e0f21",
+        "matter_id": "874261bc-3313-4f64-930b-eac33cc473a4",
+        "source_chunk_id": "58cc69fd-2d09-4ae7-8e76-e9e35c2c1aac",
         "source_document": "ASIC_Extract_FixtureHoldings.pdf",
         "source_doc_type": "asic_extract",
         "source_section": "officeholders",
         "source_text": "James Mitchell is the sole director. He holds sole and exclusive signing authority without restriction. A single director exercises complete unilateral authority to execute any contract of any value. No co-signature or second director approval is required for any transaction.",
-        "target_chunk_id": "e7553ec8-5a6c-472d-88c1-94f1d952d2c3",
+        "target_chunk_id": "48bee8a5-0905-46d1-8571-0b5fc34d0a0a",
         "target_document": "Constitution_FixtureHoldings.pdf",
         "target_doc_type": "constitution",
         "target_section": "quorum",

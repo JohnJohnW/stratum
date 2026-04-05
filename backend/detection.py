@@ -17,7 +17,6 @@ structural inconsistencies that embeddings treat as on-topic.
 """
 
 import logging
-import os
 import re
 import uuid
 
@@ -35,10 +34,6 @@ from backend.embeddings import l2_normalize
 from backend.typologies import search_typologies
 
 logger = logging.getLogger(__name__)
-
-
-def _get_threshold() -> float:
-    return float(os.environ.get("CONTRADICTION_THRESHOLD", "0.65"))
 
 
 class Contradiction(BaseModel):

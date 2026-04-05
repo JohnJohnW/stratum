@@ -420,7 +420,6 @@ def build_graph_from_entities(matter_id: str, entities_by_doc: dict) -> dict:
             }})
 
     # Add contradiction edges, mapping to relevant node pairs
-    all_node_ids = [n["data"]["id"] for n in nodes]
     for i, contra in enumerate(matter.contradictions):
         c = contra if isinstance(contra, dict) else contra.model_dump()
         typology_id = c.get("typology_id", "")

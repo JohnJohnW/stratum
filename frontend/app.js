@@ -764,7 +764,8 @@ function App() {
         formData.append('file', file)
 
         setUploadProgress(prev => ({ ...prev, [docType]: 'uploading' }))
-        await fetch(`/upload/${docType}?matter_id=${mid}`, { method: 'POST', body: formData })
+        const uploadRes = await fetch(`/upload/${docType}?matter_id=${mid}`, { method: 'POST', body: formData })
+        if (!uploadRes.ok) throw new Error(`Upload failed for ${file.name}`)
         setUploadProgress(prev => ({ ...prev, [docType]: 'done' }))
 
         setStatus({
@@ -832,7 +833,8 @@ function App() {
   }, [])
 
   const deleteMatter = useCallback(async (mid) => {
-    await fetch(`/matters/${mid}`, { method: 'DELETE' })
+    const res = await fetch(`/matters/${mid}`, { method: 'DELETE' })
+    if (!res.ok) return
     if (matterId === mid) {
       setMatterId(null)
       setMatter(null)

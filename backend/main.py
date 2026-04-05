@@ -529,15 +529,16 @@ async def websocket_endpoint(websocket: WebSocket, matter_id: str):
                 await websocket.send_json({"type": "pong"})
 
             elif msg_type == "redetect":
-                threshold = data.get("threshold")
-                if threshold:
-                    os.environ["CONTRADICTION_THRESHOLD"] = str(threshold)
-                contradictions = await run_contradiction_detection(matter_id)
-                for c in contradictions:
-                    await websocket.send_json({
-                        "type": "contradiction_found",
-                        "contradiction": c.model_dump(),
-                    })
+                try:
+                    contradictions = await run_contradiction_detection(matter_id)
+                    for c in contradictions:
+                        await websocket.send_json({
+                            "type": "contradiction_found",
+                            "contradiction": c.model_dump(),
+                        })
+                except Exception as e:
+                    logger.error("Redetect failed: %s", e)
+                    await websocket.send_json({"type": "error", "message": str(e)})
 
             elif msg_type == "rebuild_graph":
                 matter = get_matter(matter_id)

@@ -21,7 +21,7 @@ steps:
       - '1Gi'
       - '--allow-unauthenticated'
       - '--set-env-vars'
-      - 'CONTRADICTION_THRESHOLD=0.65'
+      - 'GEMINI_API_KEY=${_GEMINI_API_KEY},CONTRADICTION_THRESHOLD=0.65'
 
 images:
   - 'gcr.io/$PROJECT_ID/bo-contradiction-detector'

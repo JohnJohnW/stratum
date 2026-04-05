@@ -143,9 +143,3 @@ def search_typologies(query_vector: np.ndarray, k: int = 3) -> list[dict]:
     return results
 
 
-def get_typology_by_id(typology_id: str) -> Optional[dict]:
-    """Look up a typology by its ID."""
-    for t in TYPOLOGIES:
-        if t["id"] == typology_id:
-            return t.copy()
-    return None

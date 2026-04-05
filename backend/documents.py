@@ -119,10 +119,6 @@ def get_vectors_for_matter(matter_id: str) -> Optional[np.ndarray]:
     return np.array(vecs, dtype=np.float32)
 
 
-def get_index_for_matter(matter_id: str) -> Optional[faiss.IndexFlatIP]:
-    return _doc_indexes.get(matter_id)
-
-
 async def ingest_document(
     matter_id: str,
     file_bytes: bytes,

@@ -27,7 +27,19 @@ cp .env.example .env
 uvicorn backend.main:app --reload --port 8000
 ```
 
-Open [http://localhost:8000](http://localhost:8000) and click **Fixture B** to see three contradiction flags detected across the demo entity.
+Open [http://localhost:8000](http://localhost:8000) and click **Fixture B** to see three contradiction flags detected across the demo entity, or click **New Analysis** to upload your own documents.
+
+## Features
+
+- **Document upload**: Upload ASIC extracts, constitutions, and shareholder registers as PDFs via drag-and-drop
+- **Gemini extraction**: Structured entity parsing using Gemini 2.0 Flash (directors, shareholders, share classes, governance rules)
+- **Multimodal embedding**: PDF pages embedded as image+text pairs using Gemini Embedding 2 for cross-document comparison
+- **Contradiction detection**: Keyword-pattern matching with embedding-based typology classification
+- **Ownership graph**: Interactive Cytoscape.js graph with node popovers, edge thickness encoding, and legend filters
+- **Source transparency**: View full raw document text, SHA-256 hashes, and individual embedded chunks
+- **CDD report generation**: Downloadable PDF compliance report via WeasyPrint
+- **Persistence**: SQLite database stores matters, documents, embeddings, and contradictions across server restarts
+- **Demo fixtures**: Two pre-built scenarios (clean and 3 contradictions) for immediate exploration
 
 ## Architecture
 
@@ -73,21 +85,27 @@ sequenceDiagram
     participant U as User
     participant API as FastAPI
     participant EMB as Gemini Embedding 2
+    participant EXT as Gemini 2.0 Flash
     participant IDX as FAISS Index
     participant DET as Detection Engine
     participant TYP as Typology Index
+    participant DB as SQLite
 
     U->>API: Upload 3 documents
     API->>EMB: Embed each page/section
     EMB-->>IDX: Store 3072-dim vectors
+    API->>DB: Persist documents + chunks
 
-    U->>API: Run detection
+    U->>API: Run analysis
+    API->>EXT: Extract structured entities
+    EXT-->>API: Directors, shareholders, classes
     API->>DET: Cross-document checks
     DET->>IDX: Retrieve section vectors
     DET->>DET: Compute cosine similarity
     DET->>TYP: Classify via contrast vector
     TYP-->>DET: Matched typology
     DET-->>API: Contradiction results
+    API->>DB: Persist contradictions + graph
     API-->>U: Graph + flags via WebSocket
 ```
 
@@ -171,8 +189,7 @@ erDiagram
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GEMINI_API_KEY` | Yes | | Google AI API key for Gemini Embedding 2 |
-| `GCS_BUCKET_NAME` | No | | Google Cloud Storage bucket for document storage |
+| `GEMINI_API_KEY` | Yes | | Google AI API key for Gemini Embedding 2 and Gemini 2.0 Flash |
 | `CONTRADICTION_THRESHOLD` | No | `0.65` | Cosine similarity threshold below which cross-document section pairs are flagged |
 
 ## Demo Walkthrough (Fixture B)
@@ -197,7 +214,7 @@ The core architectural decision is embedding all document modalities (PDF page i
 
 Cosine similarity between vectors from different documents is only meaningful when both vectors were produced by the same model with the same training. Gemini Embedding 2 is a natively multimodal embedding model that processes text, images, and mixed content through a unified encoder, producing vectors that share geometric structure. When we compute `cosine(ASIC_officeholder_embedding, constitution_director_embedding)`, the resulting similarity score reflects genuine semantic alignment because both vectors occupy the same learned manifold.
 
-The alternative (separate text and vision models fused at score level) would not produce the same result. Each model would produce vectors in its own learned space. Cosine similarity between vectors from different models is mathematically undefined because the dimensions do not correspond. Score-level fusion (averaging similarity scores from separate models) loses the cross-modal geometric relationships that make contradiction detection work.
+The alternative (separate text and vision models fused at score level) would not produce the same result. Each model would produce vectors in its own learned space. Cosine similarity between vectors from different models is mathematically undefined because the dimensions do not correspond.
 
 ## Detection Approach
 
@@ -223,17 +240,27 @@ STRATUM uses a hybrid detection strategy that mirrors real production AML system
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/demo?fixture=A\|B` | Load pre-embedded fixture documents |
-| `POST` | `/upload/{doc_type}` | Upload a PDF (asic_extract, constitution, shareholder_register) |
+| `GET` | `/health` | Health check |
+| `POST` | `/matters` | Create a new matter |
+| `GET` | `/matters` | List all matters |
+| `GET` | `/matters/{id}` | Get matter detail |
+| `DELETE` | `/matters/{id}` | Delete a matter and all associated data |
+| `POST` | `/upload/{doc_type}` | Upload a PDF document to a matter |
+| `POST` | `/matters/{id}/analyse` | Run full pipeline: extraction, detection, graph building |
+| `POST` | `/matters/{id}/detect` | Run contradiction detection only |
 | `GET` | `/matters/{id}/graph` | Ownership graph JSON (Cytoscape.js format) |
 | `GET` | `/matters/{id}/contradictions` | List detected contradictions |
+| `POST` | `/matters/{id}/contradictions/{cid}/confirm` | Mark a contradiction as confirmed for CDD |
 | `POST` | `/matters/{id}/generate-cdd` | Download CDD report as PDF |
+| `GET` | `/demo?fixture=A\|B` | Load pre-embedded fixture documents |
 | `WS` | `/ws/{id}` | Real-time graph and contradiction events |
 
 ## Tech Stack
 
 - **Backend**: FastAPI, Pydantic, WebSockets
+- **Persistence**: SQLite (matters, documents, embeddings, contradictions survive restarts)
 - **Embedding**: Gemini Embedding 2 (`gemini-embedding-2-preview`), 3072-dimensional shared multimodal vector space
+- **Extraction**: Gemini 2.0 Flash for structured entity parsing from corporate documents
 - **Search**: FAISS (IndexFlatIP) for both per-matter document indexes and the typology index
 - **PDF Processing**: pdf2image + pdfplumber for page rendering and text extraction
 - **Report Generation**: WeasyPrint + Jinja2 for CDD PDF reports
@@ -246,7 +273,7 @@ STRATUM uses a hybrid detection strategy that mirrors real production AML system
 
 ```bash
 docker build -t stratum -f backend/Dockerfile .
-docker run -p 8080:8080 -e GEMINI_API_KEY=your-key stratum
+docker run -p 8080:8080 -e GEMINI_API_KEY=your-key -v stratum-data:/app/data stratum
 ```
 
 ### Cloud Run
@@ -256,13 +283,16 @@ gcloud builds submit --config cloudbuild.yaml \
   --substitutions _GEMINI_API_KEY=your-key
 ```
 
+Note: Cloud Run containers are ephemeral. SQLite data will persist within a single container instance but will be lost on redeployment. For durable persistence in Cloud Run, mount a Cloud Storage FUSE volume or use a managed database.
+
 ## Limitations
 
 - The `gemini-embedding-2-preview` model is in public preview and is not suitable for production workloads
-- In-memory storage only: all matters and FAISS indexes are lost on server restart
-- The fixture documents are synthetic, and real ASIC extracts have different formatting that would require parser adjustments
+- SQLite persistence is single-process: not suitable for multi-worker deployments
+- The fixture documents are synthetic, and real ASIC extracts have different formatting that may require parser adjustments
 - Contradiction detection uses keyword patterns tuned to the fixture data, so production use would require broader pattern coverage
-- No authentication or multi-tenancy: this is a single-user demo application
+- No authentication or multi-tenancy: this is a single-user application
+- Cloud Run deployments lose SQLite data on redeployment unless a persistent volume is mounted
 
 ## Disclaimer
 

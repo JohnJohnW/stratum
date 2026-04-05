@@ -108,18 +108,6 @@ async def embed_texts(texts: list[str]) -> np.ndarray:
     return vectors / norms
 
 
-async def embed_image(image_bytes: bytes, mime_type: str = "image/png") -> np.ndarray:
-    """Embed a single image. Returns (3072,) L2-normalized float32."""
-    result = await asyncio.to_thread(
-        _embed_content_sync,
-        types.Content(parts=[
-            types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-        ]),
-    )
-    vec = np.array(result.embeddings[0].values, dtype=np.float32)
-    return l2_normalize(vec)
-
-
 async def embed_multimodal(
     text: str,
     image_bytes: bytes,
@@ -137,50 +125,3 @@ async def embed_multimodal(
     return l2_normalize(vec)
 
 
-async def embed_document_pages(
-    pages: list[tuple[str, Optional[bytes]]],
-) -> np.ndarray:
-    """
-    Embed document pages in batches of BATCH_SIZE.
-
-    Args:
-        pages: List of (text, image_bytes_or_None) tuples per page.
-
-    Returns:
-        Average embedding across all batches, shape (3072,) L2-normalized.
-        If only one batch, returns that batch's embedding directly.
-    """
-    if not pages:
-        raise ValueError("No pages to embed")
-
-    batch_embeddings = []
-
-    for batch_start in range(0, len(pages), BATCH_SIZE):
-        batch = pages[batch_start:batch_start + BATCH_SIZE]
-        parts = []
-        for text, image_bytes in batch:
-            if image_bytes is not None:
-                parts.append(
-                    types.Part.from_bytes(data=image_bytes, mime_type="image/png")
-                )
-            if text:
-                parts.append(types.Part(text=text))
-
-        if not parts:
-            continue
-
-        result = await asyncio.to_thread(
-            _embed_content_sync,
-            types.Content(parts=parts),
-        )
-        vec = np.array(result.embeddings[0].values, dtype=np.float32)
-        batch_embeddings.append(vec)
-
-    if not batch_embeddings:
-        raise ValueError("No embeddings produced from pages")
-
-    if len(batch_embeddings) == 1:
-        return l2_normalize(batch_embeddings[0])
-
-    avg = np.mean(batch_embeddings, axis=0)
-    return l2_normalize(avg)
